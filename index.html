@@ -1692,9 +1692,9 @@ function __boot() {
     // Geometry
     const maxScore = Math.max(1, ...data.lines.flatMap((l) => l.points));
     const yMax = Math.ceil(maxScore / 5) * 5 + (maxScore < 5 ? 5 : 0);
-    const W = 600;
-    const H = 240;
-    const padL = 28, padR = 12, padT = 16, padB = 38;
+    const W = 900;
+    const H = 360;
+    const padL = 36, padR = 16, padT = 20, padB = 48;
     const chartW = W - padL - padR;
     const chartH = H - padT - padB;
     const xStep = data.ticks.length > 1 ? chartW / (data.ticks.length - 1) : 0;
@@ -1784,7 +1784,7 @@ function __boot() {
                   stroke="#292524" strokeWidth="1"
                   strokeDasharray={v === 0 ? '0' : '2 3'}
                 />
-                <text x={padL - 4} y={yAt(v) + 3} textAnchor="end" fill="#57534e" fontSize="9" fontFamily="monospace">
+                <text x={padL - 6} y={yAt(v) + 4} textAnchor="end" fill="#57534e" fontSize="12" fontFamily="monospace">
                   {v}
                 </text>
               </g>
@@ -1795,22 +1795,22 @@ function __boot() {
               const showLabel = i === 0 || i === data.ticks.length - 1 || (data.ticks.length > 6 ? i % Math.ceil(data.ticks.length / 5) === 0 : true);
               return (
                 <g key={tick.key}>
-                  <line x1={xAt(i)} y1={padT + chartH} x2={xAt(i)} y2={padT + chartH + 3} stroke="#44403c" strokeWidth="1" />
+                  <line x1={xAt(i)} y1={padT + chartH} x2={xAt(i)} y2={padT + chartH + 4} stroke="#44403c" strokeWidth="1" />
                   {showLabel && (
                     <text
-                      x={xAt(i)} y={padT + chartH + 14}
+                      x={xAt(i)} y={padT + chartH + 18}
                       textAnchor={i === 0 ? 'start' : i === data.ticks.length - 1 ? 'end' : 'middle'}
-                      fill="#57534e" fontSize="8" fontFamily="monospace"
+                      fill="#78716c" fontSize="11" fontFamily="monospace"
                     >
                       {tick.label}
                     </text>
                   )}
                   {tick.seriesId && tick.winner && showLabel && (
                     <text
-                      x={xAt(i)} y={padT + chartH + 26}
+                      x={xAt(i)} y={padT + chartH + 34}
                       textAnchor={i === 0 ? 'start' : i === data.ticks.length - 1 ? 'end' : 'middle'}
                       fill={TEAM_DATA[tick.winner]?.color || '#78716c'}
-                      fontSize="8" fontFamily="monospace" fontWeight="600"
+                      fontSize="11" fontFamily="monospace" fontWeight="600"
                     >
                       {tick.winner}
                     </text>
@@ -1838,7 +1838,7 @@ function __boot() {
               const isDimmed = hoveredUserId && !isHovered;
               const cx = xAt(pos);
               const cy = yAt(line.scoreAtPos);
-              const avatarR = isHovered ? 11 : 9;
+              const avatarR = isHovered ? 16 : 13;
               const clipId = `avclip-${line.user.id}`;
               return (
                 <g key={line.user.id} opacity={isDimmed ? 0.25 : 1}>
@@ -1875,10 +1875,10 @@ function __boot() {
                     />
                   ) : (
                     <text
-                      x={cx} y={cy + 3}
+                      x={cx} y={cy + 5}
                       textAnchor="middle"
                       fill={color}
-                      fontSize="9"
+                      fontSize="14"
                       fontFamily="serif"
                       fontWeight="600"
                     >
@@ -1894,25 +1894,25 @@ function __boot() {
                     const firstName = line.user.name.split(' ')[0];
                     const text = `${firstName} · ${line.scoreAtPos}`;
                     // Approximate text width for background pill
-                    const textW = text.length * 5.2 + 8;
+                    const textW = text.length * 7.2 + 12;
                     return (
                       <g>
                         <rect
-                          x={labelOnLeft ? labelX - textW : labelX - 4}
-                          y={cy - 7}
+                          x={labelOnLeft ? labelX - textW : labelX - 6}
+                          y={cy - 10}
                           width={textW}
-                          height={14}
-                          rx={2}
+                          height={20}
+                          rx={3}
                           fill="#0c0a09"
                           stroke={color}
-                          strokeWidth="1"
+                          strokeWidth="1.5"
                         />
                         <text
                           x={labelX}
-                          y={cy + 3}
+                          y={cy + 5}
                           textAnchor={anchor}
                           fill="#e7e5e4"
-                          fontSize="9"
+                          fontSize="13"
                           fontFamily="monospace"
                           fontWeight="600"
                         >
@@ -1952,32 +1952,61 @@ function __boot() {
             />
           </div>
 
-          {/* Legend */}
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-2">
+          {/* Legend — horizontal row of avatar discs, sorted by current rank */}
+          <div className="mt-3 flex items-start justify-center gap-2 sm:gap-3 flex-wrap">
             {linesAtPos
               .slice()
               .sort((a, b) => b.scoreAtPos - a.scoreAtPos)
               .map((line, rank) => {
                 const color = colorFor(line.user.id);
                 const isHovered = hoveredUserId === line.user.id;
+                const isLeader = rank === 0;
                 return (
                   <button
                     key={line.user.id}
                     onMouseEnter={() => setHoveredUserId(line.user.id)}
                     onMouseLeave={() => setHoveredUserId(null)}
                     onClick={() => {
-                      // Toggle highlight on tap; tapping same player twice opens profile
                       if (isHovered && onUserClick) onUserClick(line.user.id);
                       else setHoveredUserId(line.user.id);
                     }}
-                    className={`flex items-center gap-1.5 text-left transition-opacity ${
-                      hoveredUserId && !isHovered ? 'opacity-40' : 'opacity-100'
+                    className={`flex flex-col items-center gap-1 transition-opacity ${
+                      hoveredUserId && !isHovered ? 'opacity-30' : 'opacity-100'
                     }`}
+                    title={line.user.name}
                   >
-                    <span className="font-mono text-[9px] text-stone-600 w-3 text-right">{rank + 1}</span>
-                    <span className="w-2.5 h-2.5 flex-shrink-0" style={{ background: color }} />
-                    <span className="font-serif text-xs truncate flex-1 min-w-0">{line.user.name.split(' ')[0]}</span>
-                    <span className="font-mono text-[10px] tabular-nums text-stone-400">{line.scoreAtPos}</span>
+                    <div className="relative">
+                      <div
+                        className="rounded-full overflow-hidden flex items-center justify-center"
+                        style={{
+                          width: isHovered || isLeader ? 52 : 44,
+                          height: isHovered || isLeader ? 52 : 44,
+                          background: line.user.avatar ? `center/cover url(${line.user.avatar})` : '#1c1917',
+                          border: `2.5px solid ${color}`,
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {!line.user.avatar && (
+                          <span className="font-serif text-lg" style={{ color }}>
+                            {line.user.name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      {/* Rank badge */}
+                      <div
+                        className="absolute -top-1 -left-1 w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px] font-bold border"
+                        style={{
+                          background: isLeader ? '#fbbf24' : '#1c1917',
+                          color: isLeader ? '#0c0a09' : '#a8a29e',
+                          borderColor: isLeader ? '#fbbf24' : '#44403c',
+                        }}
+                      >
+                        {rank + 1}
+                      </div>
+                    </div>
+                    <div className="font-mono text-[11px] tabular-nums font-semibold" style={{ color: isHovered || isLeader ? color : '#a8a29e' }}>
+                      {line.scoreAtPos}
+                    </div>
                   </button>
                 );
               })}
@@ -3447,9 +3476,6 @@ function __boot() {
 
             <aside className="lg:sticky lg:top-32 lg:self-start space-y-3 lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto">
               <Leaderboard users={users} series={series} liveGames={liveData.games} onUserClick={setProfileUserId} />
-              {users.length > 0 && series.some((s) => s.status === 'closed') && (
-                <ScoreHistory users={users} series={series} onUserClick={setProfileUserId} />
-              )}
               {users.length > 0 && (
                 <HotTakes users={users} series={series} onSeriesClick={setActiveSeries} />
               )}
@@ -3474,6 +3500,13 @@ function __boot() {
               )}
             </aside>
           </main>
+
+          {/* Full-width score history below the main two-column layout */}
+          {users.length > 0 && series.some((s) => s.status === 'closed') && (
+            <section className="max-w-6xl mx-auto px-4 mt-2">
+              <ScoreHistory users={users} series={series} onUserClick={setProfileUserId} />
+            </section>
+          )}
 
           <footer className="max-w-6xl mx-auto px-4 py-6 mt-6 border-t border-stone-900">
             <div className="font-mono text-[10px] uppercase tracking-wider text-stone-600 text-center">
