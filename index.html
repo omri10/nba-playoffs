@@ -755,9 +755,12 @@ function __boot() {
   }
 
   function SeriesCard({ series, onClick, userBet, liveGame }) {
-    const isLocked = series.status !== 'scheduled';
     const hasBet = !!userBet;
     const isLive = liveGame && liveGame.statusState === 'in';
+    const isClosed = series.status === 'closed';
+    const isInProgress = series.status === 'inprogress' && !isClosed;
+    const gamesPlayed = (series.highWins || 0) + (series.lowWins || 0);
+    const matchupSet = !!series.high && !!series.low;
     return (
       <button
         onClick={() => onClick(series)}
@@ -774,14 +777,21 @@ function __boot() {
               <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
               LIVE · Q{liveGame.period} {liveGame.clock}
             </span>
-          ) : isLocked && (
-            <span className="font-mono text-[9px] uppercase tracking-wider text-emerald-500/70 flex items-center gap-1">
-              <Lock size={9} /> Locked
+          ) : isClosed ? (
+            <span className="font-mono text-[9px] uppercase tracking-wider text-emerald-700 flex items-center gap-1 font-bold">
+              ✓ Final
             </span>
-          )}
-          {hasBet && !isLocked && !isLive && (
-            <span className="font-mono text-[9px] uppercase tracking-wider text-amber-400 flex items-center gap-1">
-              <Check size={9} /> Bet placed
+          ) : isInProgress ? (
+            <span className="font-mono text-[9px] uppercase tracking-wider text-orange-700 flex items-center gap-1 font-bold">
+              ● Ongoing
+            </span>
+          ) : matchupSet ? (
+            <span className="font-mono text-[9px] uppercase tracking-wider text-stone-500 flex items-center gap-1">
+              ○ Upcoming
+            </span>
+          ) : (
+            <span className="font-mono text-[9px] uppercase tracking-wider text-stone-500 flex items-center gap-1">
+              Awaiting bracket
             </span>
           )}
         </div>
@@ -806,11 +816,18 @@ function __boot() {
             </span>
           </div>
         )}
-        {series.winner && !isLive && (
+        {isClosed && !isLive && (
           <div className="mt-2 pt-2 border-t border-stone-800 flex items-center gap-2">
             <Crown size={11} className="text-amber-400" />
             <span className="font-mono text-[10px] text-amber-400">
-              {series.winner} in {series.totalGames}
+              {series.winner} won the series in {series.totalGames}
+            </span>
+          </div>
+        )}
+        {isInProgress && !isLive && gamesPlayed > 0 && (
+          <div className="mt-2 pt-2 border-t border-stone-800">
+            <span className="font-mono text-[10px] text-stone-500">
+              Series in progress · Game {gamesPlayed + 1} next
             </span>
           </div>
         )}
@@ -2264,6 +2281,44 @@ function __boot() {
 
     const hasLiveImpact = liveDecisiveSeries.length > 0;
 
+    // Compute most-recently-closed series + each player's delta and rank change
+    // from before that series closed.
+    const lastSeriesImpact = useMemo(() => {
+      const closedSeries = series
+        .filter((s) => s.status === 'closed')
+        .sort((a, b) => a.round - b.round || a.id.localeCompare(b.id));
+      if (closedSeries.length === 0) return null;
+      const last = closedSeries[closedSeries.length - 1];
+      const before = closedSeries.slice(0, -1);
+
+      // Compute scores at both points in time
+      const beforeScores = {};
+      const afterScores = {};
+      for (const u of users) {
+        beforeScores[u.id] = calcPoints(u.bets || {}, before, u.champion).points;
+        afterScores[u.id] = calcPoints(u.bets || {}, closedSeries, u.champion).points;
+      }
+
+      // Rank both states (highest score = rank 0)
+      const beforeRanks = {};
+      Object.entries(beforeScores)
+        .sort(([, a], [, b]) => b - a)
+        .forEach(([id], i) => { beforeRanks[id] = i; });
+      const afterRanks = {};
+      Object.entries(afterScores)
+        .sort(([, a], [, b]) => b - a)
+        .forEach(([id], i) => { afterRanks[id] = i; });
+
+      const perUser = {};
+      for (const u of users) {
+        perUser[u.id] = {
+          delta: afterScores[u.id] - beforeScores[u.id],
+          rankChange: beforeRanks[u.id] - afterRanks[u.id], // positive = moved up
+        };
+      }
+      return { last, perUser };
+    }, [users, series]);
+
     const standings = useMemo(() => {
       return users
         .map((u) => {
@@ -2367,10 +2422,38 @@ function __boot() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-serif truncate">{u.name}</div>
-                  <div className="font-mono text-[10px] text-stone-500">
-                    {u.breakdown.winners}W · {u.breakdown.games}G
+                  <div className="font-mono text-[10px] text-stone-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                    {/* Last-series impact */}
+                    {lastSeriesImpact && (() => {
+                      const impact = lastSeriesImpact.perUser[u.id];
+                      if (!impact) return null;
+                      const lastLabel = `${lastSeriesImpact.last.winner} ${lastSeriesImpact.last.totalGames}`;
+                      return (
+                        <>
+                          <span className="text-stone-500">last series:</span>
+                          <span className={impact.delta > 0 ? 'text-emerald-700 font-bold' : 'text-stone-500'}>
+                            {impact.delta > 0 ? `+${impact.delta}` : impact.delta} pt{Math.abs(impact.delta) === 1 ? '' : 's'}
+                          </span>
+                          <span className="text-stone-500">({lastLabel})</span>
+                          {impact.rankChange > 0 && (
+                            <span className="text-emerald-700 font-bold">↑{impact.rankChange}</span>
+                          )}
+                          {impact.rankChange < 0 && (
+                            <span className="text-red-700 font-bold">↓{Math.abs(impact.rankChange)}</span>
+                          )}
+                          {impact.rankChange === 0 && (
+                            <span className="text-stone-400">—</span>
+                          )}
+                        </>
+                      );
+                    })()}
+                    {/* Live projection (from live decisive games) */}
                     {showProjected && (
-                      <span className="text-red-400 ml-1.5">+{u.projectedBreakdown.winners - u.breakdown.winners}W projected</span>
+                      <span className="text-red-700 ml-1.5 font-bold">+{u.projectedBreakdown.winners - u.breakdown.winners} projected</span>
+                    )}
+                    {/* If neither, show the raw breakdown so the row isn't empty */}
+                    {!lastSeriesImpact && !showProjected && (
+                      <span>{u.breakdown.winners}pts winners · {u.breakdown.games}pts games</span>
                     )}
                   </div>
                 </div>
@@ -3326,7 +3409,6 @@ function __boot() {
               <h3 className="font-display text-base uppercase mb-2">The Pool</h3>
               <p>
                 Each player picks the winner of every NBA playoff series, plus their NBA champion before the playoffs start.
-                The picks are locked in — no changes once a series begins.
               </p>
             </section>
 
@@ -3648,17 +3730,30 @@ function __boot() {
       window.location.reload();
     };
 
-    // Auto-refresh ESPN data every 30 seconds.
+    // Auto-refresh ESPN data.
+    // Cadence depends on whether there's an active game right now:
+    //   - 30s when at least one game is live (fast updates during games)
+    //   - 5 min otherwise (idle — we still want to detect when a new game starts,
+    //     but don't need to hammer the API)
     // Runs once on mount too so we get fresh data immediately.
     useEffect(() => {
       handleSync();
+    // eslint-disable-next-line
+    }, []);
+
+    // Determine if any game is currently live (statusState === 'in')
+    const hasLiveGame = useMemo(() => {
+      return Object.values(liveData.games || {}).some((g) => g?.statusState === 'in');
+    }, [liveData.games]);
+
+    useEffect(() => {
+      const intervalMs = hasLiveGame ? 30000 : 5 * 60 * 1000;
       const t = setInterval(() => {
-        // Skip if a manual sync is already in flight
         if (!syncing) handleSync();
-      }, 30000);
+      }, intervalMs);
       return () => clearInterval(t);
       // eslint-disable-next-line
-    }, []);
+    }, [hasLiveGame]);
 
     const handleShareViewerLink = async () => {
       // Viewer URL needs key+basket too (Pantry requires key for reads), but no edit flag.
