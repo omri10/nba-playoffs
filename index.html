@@ -37,7 +37,7 @@
 // Wait for lucide-react to be ready before booting
 function __boot() {
   const { useState, useEffect, useMemo } = React;
-  const { Trophy, Users, RefreshCw, Lock, Plus, X, Check, ChevronRight, Crown, Zap, Share2, Eye, Flame, Clock, Swords, Play, Pause, RotateCcw } = LucideReact;
+  const { Trophy, Users, RefreshCw, Lock, Plus, X, Check, ChevronRight, Crown, Zap, Share2, Eye, Flame, Clock, Swords, Play, Pause, RotateCcw, HelpCircle } = LucideReact;
 
 
   // ============================================================================
@@ -829,24 +829,23 @@ function __boot() {
 
     return (
       <div className="space-y-6">
-        {/* Finals */}
-        <div className="bg-gradient-to-br from-amber-950/40 to-stone-900 border border-amber-700/30 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Trophy size={14} className="text-amber-400" />
-            <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-amber-400">NBA Finals</span>
-          </div>
-          <SeriesCard series={finals} onClick={onSeriesClick} userBet={userBets[finals.id]} liveGame={findLiveGameForSeries(finals, liveGames)} />
-        </div>
-
-        {/* Conf Finals */}
+        {/* Round 1 */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-stone-500 mb-2">East Finals</div>
-            <SeriesCard series={ef} onClick={onSeriesClick} userBet={userBets[ef.id]} liveGame={findLiveGameForSeries(ef, liveGames)} />
+            <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-stone-500 mb-2">East Round 1</div>
+            <div className="space-y-2">
+              {round1East.map((s) => (
+                <SeriesCard key={s.id} series={s} onClick={onSeriesClick} userBet={userBets[s.id]} liveGame={findLiveGameForSeries(s, liveGames)} />
+              ))}
+            </div>
           </div>
           <div>
-            <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-stone-500 mb-2">West Finals</div>
-            <SeriesCard series={wf} onClick={onSeriesClick} userBet={userBets[wf.id]} liveGame={findLiveGameForSeries(wf, liveGames)} />
+            <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-stone-500 mb-2">West Round 1</div>
+            <div className="space-y-2">
+              {round1West.map((s) => (
+                <SeriesCard key={s.id} series={s} onClick={onSeriesClick} userBet={userBets[s.id]} liveGame={findLiveGameForSeries(s, liveGames)} />
+              ))}
+            </div>
           </div>
         </div>
 
@@ -870,30 +869,43 @@ function __boot() {
           </div>
         </div>
 
-        {/* Round 1 */}
+        {/* Conf Finals */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-stone-500 mb-2">East Round 1</div>
-            <div className="space-y-2">
-              {round1East.map((s) => (
-                <SeriesCard key={s.id} series={s} onClick={onSeriesClick} userBet={userBets[s.id]} liveGame={findLiveGameForSeries(s, liveGames)} />
-              ))}
-            </div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-stone-500 mb-2">East Finals</div>
+            <SeriesCard series={ef} onClick={onSeriesClick} userBet={userBets[ef.id]} liveGame={findLiveGameForSeries(ef, liveGames)} />
           </div>
           <div>
-            <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-stone-500 mb-2">West Round 1</div>
-            <div className="space-y-2">
-              {round1West.map((s) => (
-                <SeriesCard key={s.id} series={s} onClick={onSeriesClick} userBet={userBets[s.id]} liveGame={findLiveGameForSeries(s, liveGames)} />
-              ))}
-            </div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-stone-500 mb-2">West Finals</div>
+            <SeriesCard series={wf} onClick={onSeriesClick} userBet={userBets[wf.id]} liveGame={findLiveGameForSeries(wf, liveGames)} />
           </div>
+        </div>
+
+        {/* NBA Finals */}
+        <div className="bg-gradient-to-br from-amber-950/40 to-stone-900 border border-amber-700/30 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Trophy size={14} className="text-amber-400" />
+            <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-amber-400">NBA Finals</span>
+          </div>
+          <SeriesCard series={finals} onClick={onSeriesClick} userBet={userBets[finals.id]} liveGame={findLiveGameForSeries(finals, liveGames)} />
         </div>
       </div>
     );
   }
 
+  // ============================================================================
+  // useEscapeKey — closes a modal when Escape is pressed
+  // ============================================================================
+  function useEscapeKey(onEscape) {
+    useEffect(() => {
+      const handler = (e) => { if (e.key === 'Escape') onEscape(); };
+      document.addEventListener('keydown', handler);
+      return () => document.removeEventListener('keydown', handler);
+    }, [onEscape]);
+  }
+
   function SeriesModal({ series, users, currentUserId, onClose, onSaveBet, isAdmin, liveGame, reactions, onReactionToggle }) {
+    useEscapeKey(onClose);
     const [winner, setWinner] = useState(null);
     const [totalGames, setTotalGames] = useState(6);
 
@@ -931,7 +943,7 @@ function __boot() {
     };
 
     return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ background: 'rgba(28, 25, 23, 0.55)' }}>
         <div className="bg-stone-900 border-t sm:border border-stone-700 w-full max-w-lg max-h-[90vh] overflow-y-auto">
           <div className="sticky top-0 bg-stone-900 border-b border-stone-800 p-4 flex items-center justify-between">
             <div>
@@ -942,8 +954,14 @@ function __boot() {
                 {hasTeams ? `${TEAM_DATA[teamA].city} vs ${TEAM_DATA[teamB].city}` : 'Awaiting matchup'}
               </div>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-stone-800">
-              <X size={18} />
+            <button
+              onClick={onClose}
+              className="flex-shrink-0 flex items-center justify-center w-9 h-9 transition-colors"
+              style={{ background: '#ffffff', color: '#1c1917', border: '2px solid #1c1917' }}
+              title="Close"
+              aria-label="Close"
+            >
+              <X size={18} strokeWidth={2.5} />
             </button>
           </div>
 
@@ -1202,7 +1220,7 @@ function __boot() {
                     </div>
                     <div
                       className="w-7 h-7 flex items-center justify-center font-serif text-[11px] flex-shrink-0 border border-stone-700"
-                      style={user.avatar ? { background: `url(${user.avatar}) center/cover` } : { background: '#292524' }}
+                      style={user.avatar ? { background: `url(${user.avatar}) center/cover` } : { background: '#f5ecd5' }}
                     >
                       {!user.avatar && user.name.charAt(0).toUpperCase()}
                     </div>
@@ -1701,7 +1719,7 @@ function __boot() {
     const xAt = (i) => padL + i * xStep;
     const yAt = (v) => padT + chartH - (v / yMax) * chartH;
 
-    const palette = ['#34d399', '#60a5fa', '#f472b6', '#fbbf24', '#a78bfa', '#fb923c', '#22d3ee', '#f87171'];
+    const palette = ['#047857', '#1d4ed8', '#be185d', '#b45309', '#6d28d9', '#c2410c', '#0e7490', '#991b1b'];
     const colorFor = (userId) => {
       let hash = 0;
       for (let i = 0; i < userId.length; i++) hash = (hash * 31 + userId.charCodeAt(i)) | 0;
@@ -1781,7 +1799,7 @@ function __boot() {
               <g key={v}>
                 <line
                   x1={padL} y1={yAt(v)} x2={W - padR} y2={yAt(v)}
-                  stroke="#292524" strokeWidth="1"
+                  stroke="#d6c9a8" strokeWidth="1"
                   strokeDasharray={v === 0 ? '0' : '2 3'}
                 />
                 <text x={padL - 6} y={yAt(v) + 4} textAnchor="end" fill="#57534e" fontSize="12" fontFamily="monospace">
@@ -1795,12 +1813,12 @@ function __boot() {
               const showLabel = i === 0 || i === data.ticks.length - 1 || (data.ticks.length > 6 ? i % Math.ceil(data.ticks.length / 5) === 0 : true);
               return (
                 <g key={tick.key}>
-                  <line x1={xAt(i)} y1={padT + chartH} x2={xAt(i)} y2={padT + chartH + 4} stroke="#44403c" strokeWidth="1" />
+                  <line x1={xAt(i)} y1={padT + chartH} x2={xAt(i)} y2={padT + chartH + 4} stroke="#1c1917" strokeWidth="1" />
                   {showLabel && (
                     <text
                       x={xAt(i)} y={padT + chartH + 18}
                       textAnchor={i === 0 ? 'start' : i === data.ticks.length - 1 ? 'end' : 'middle'}
-                      fill="#78716c" fontSize="11" fontFamily="monospace"
+                      fill="#1c1917" fontSize="11" fontFamily="monospace"
                     >
                       {tick.label}
                     </text>
@@ -1859,7 +1877,7 @@ function __boot() {
                   {/* Outer ring in player's line color */}
                   <circle
                     cx={cx} cy={cy} r={avatarR}
-                    fill="#0c0a09"
+                    fill="#fde68a"
                     stroke={color}
                     strokeWidth={isHovered ? 2 : 1.5}
                   />
@@ -1903,7 +1921,7 @@ function __boot() {
                           width={textW}
                           height={20}
                           rx={3}
-                          fill="#0c0a09"
+                          fill="#fde68a"
                           stroke={color}
                           strokeWidth="1.5"
                         />
@@ -1911,7 +1929,7 @@ function __boot() {
                           x={labelX}
                           y={cy + 5}
                           textAnchor={anchor}
-                          fill="#e7e5e4"
+                          fill="#1c1917"
                           fontSize="13"
                           fontFamily="monospace"
                           fontWeight="600"
@@ -1981,7 +1999,7 @@ function __boot() {
                         style={{
                           width: isHovered || isLeader ? 52 : 44,
                           height: isHovered || isLeader ? 52 : 44,
-                          background: line.user.avatar ? `center/cover url(${line.user.avatar})` : '#1c1917',
+                          background: line.user.avatar ? `center/cover url(${line.user.avatar})` : '#f5ecd5',
                           border: `2.5px solid ${color}`,
                           transition: 'all 0.15s ease',
                         }}
@@ -1996,7 +2014,7 @@ function __boot() {
                       <div
                         className="absolute -top-1 -left-1 w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px] font-bold border"
                         style={{
-                          background: isLeader ? '#fbbf24' : '#1c1917',
+                          background: isLeader ? '#fbbf24' : '#f5ecd5',
                           color: isLeader ? '#0c0a09' : '#a8a29e',
                           borderColor: isLeader ? '#fbbf24' : '#44403c',
                         }}
@@ -2139,7 +2157,7 @@ function __boot() {
     const lead = nextNonTied ? top.points - nextNonTied.points : null;
 
     // Color palette matching ScoreHistory legend
-    const palette = ['#34d399', '#60a5fa', '#f472b6', '#fbbf24', '#a78bfa', '#fb923c', '#22d3ee', '#f87171'];
+    const palette = ['#047857', '#1d4ed8', '#be185d', '#b45309', '#6d28d9', '#c2410c', '#0e7490', '#991b1b'];
     const colorFor = (id) => {
       let h = 0;
       for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
@@ -2150,7 +2168,7 @@ function __boot() {
       <div className="bg-gradient-to-br from-amber-950/40 via-stone-900 to-stone-900 border border-amber-700/40 mb-3 overflow-hidden">
         <div className="px-3 pt-3 pb-2 flex items-center justify-between border-b border-amber-700/20">
           <div className="flex items-center gap-2">
-            <Crown size={14} className="text-amber-400" />
+            <span className="text-base leading-none">👑</span>
             <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-amber-300">
               {isTie ? `Tied at #1 · ${leaders.length} players` : 'Current Leader'}
             </span>
@@ -2176,7 +2194,7 @@ function __boot() {
                   <div
                     className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center"
                     style={{
-                      background: r.user.avatar ? `center/cover url(${r.user.avatar})` : '#1c1917',
+                      background: r.user.avatar ? `center/cover url(${r.user.avatar})` : '#f5ecd5',
                       border: `3px solid ${color}`,
                     }}
                   >
@@ -2198,9 +2216,9 @@ function __boot() {
             <div
               className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
               style={{
-                background: top.user.avatar ? `center/cover url(${top.user.avatar})` : '#1c1917',
+                background: top.user.avatar ? `center/cover url(${top.user.avatar})` : '#f5ecd5',
                 border: `3px solid ${colorFor(top.user.id)}`,
-                boxShadow: '0 0 24px rgba(251, 191, 36, 0.25)',
+                boxShadow: '4px 4px 0 0 #1c1917',
               }}
             >
               {!top.user.avatar && (
@@ -2320,24 +2338,29 @@ function __boot() {
                 onClick={() => onUserClick && onUserClick(u.id)}
                 className="w-full flex items-center gap-3 p-3 hover:bg-stone-800/50 transition-colors text-left"
               >
-                <div className="w-6 font-mono text-sm text-center flex-shrink-0">
-                  {i === 0 && u.projected > 0 ? (
-                    <Crown size={14} className={`mx-auto ${hasLiveImpact ? 'text-red-400' : 'text-amber-400'}`} />
+                <div className="w-7 font-mono text-base text-center flex-shrink-0">
+                  {i === 0 ? (
+                    <span className="text-2xl leading-none" title="Leader" aria-label="leader">👑</span>
+                  ) : i === 1 ? (
+                    <span className="text-2xl leading-none" title="2nd place" aria-label="second">🥈</span>
+                  ) : i === 2 ? (
+                    <span className="text-2xl leading-none" title="3rd place" aria-label="third">🥉</span>
                   ) : (
                     <span className="text-stone-500">{i + 1}</span>
                   )}
                   {rankChange > 0 && (
-                    <div className="font-mono text-[8px] text-emerald-400 leading-none">↑{rankChange}</div>
+                    <div className="font-mono text-[8px] text-emerald-700 leading-none mt-0.5">↑{rankChange}</div>
                   )}
                   {rankChange < 0 && (
-                    <div className="font-mono text-[8px] text-red-400 leading-none">↓{Math.abs(rankChange)}</div>
+                    <div className="font-mono text-[8px] text-red-700 leading-none mt-0.5">↓{Math.abs(rankChange)}</div>
                   )}
                 </div>
                 <div
-                  className="w-9 h-9 flex items-center justify-center font-serif text-sm flex-shrink-0 border"
+                  className="w-10 h-10 flex items-center justify-center font-serif text-sm flex-shrink-0 border-2 rounded-full overflow-hidden"
                   style={{
-                    background: u.avatar ? `url(${u.avatar}) center/cover` : '#292524',
-                    borderColor: i === 0 && u.projected > 0 ? (hasLiveImpact ? '#f87171' : '#f59e0b') : '#44403c',
+                    background: u.avatar ? `url(${u.avatar}) center/cover` : '#f5ecd5',
+                    borderColor: i === 0 ? '#f59e0b' : i === 1 ? '#a8a29e' : '#1c1917',
+                    borderWidth: i < 2 ? '3px' : '2px',
                   }}
                 >
                   {!u.avatar && u.name.charAt(0).toUpperCase()}
@@ -2378,6 +2401,7 @@ function __boot() {
   }
 
   function AdminPanel({ users, onAdd, onRemove, onUpdateChampion, onClose }) {
+    useEscapeKey(onClose);
     const [name, setName] = useState('');
     const [avatar, setAvatar] = useState('');
     const fileRef = React.useRef();
@@ -2413,15 +2437,21 @@ function __boot() {
     const alreadyAdded = rosterMatch && users.some((u) => u.name.toLowerCase() === rosterMatch.name.toLowerCase());
 
     return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ background: 'rgba(28, 25, 23, 0.55)' }}>
         <div className="bg-stone-900 border-t sm:border border-stone-700 w-full max-w-lg max-h-[90vh] overflow-y-auto">
           <div className="sticky top-0 bg-stone-900 border-b border-stone-800 p-4 flex items-center justify-between">
             <div>
               <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-emerald-500 mb-0.5">Admin</div>
               <div className="font-serif text-xl">Manage Players</div>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-stone-800">
-              <X size={18} />
+            <button
+              onClick={onClose}
+              className="flex-shrink-0 flex items-center justify-center w-9 h-9 transition-colors"
+              style={{ background: '#ffffff', color: '#1c1917', border: '2px solid #1c1917' }}
+              title="Close"
+              aria-label="Close"
+            >
+              <X size={18} strokeWidth={2.5} />
             </button>
           </div>
           <div className="p-4 space-y-4">
@@ -2452,7 +2482,7 @@ function __boot() {
                       >
                         <div
                           className="w-5 h-5 flex items-center justify-center font-serif text-[10px] border border-stone-700"
-                          style={r.avatar ? { background: `url(${r.avatar}) center/cover` } : { background: '#292524' }}
+                          style={r.avatar ? { background: `url(${r.avatar}) center/cover` } : { background: '#f5ecd5' }}
                         >
                           {!r.avatar && r.name.charAt(0).toUpperCase()}
                         </div>
@@ -2517,7 +2547,7 @@ function __boot() {
                       <div className="flex items-center gap-3">
                         <div
                           className="w-9 h-9 flex items-center justify-center font-serif text-sm flex-shrink-0 border border-stone-700"
-                          style={u.avatar ? { background: `url(${u.avatar}) center/cover` } : { background: '#292524' }}
+                          style={u.avatar ? { background: `url(${u.avatar}) center/cover` } : { background: '#f5ecd5' }}
                         >
                           {!u.avatar && u.name.charAt(0).toUpperCase()}
                         </div>
@@ -2567,6 +2597,7 @@ function __boot() {
   }
 
   function ProfileModal({ user, users, series, onClose, onSeriesClick, onCompare }) {
+    useEscapeKey(onClose);
     const [showComparePicker, setShowComparePicker] = useState(false);
     const stats = useMemo(() => {
       const allBets = Object.entries(user.bets || {});
@@ -2636,13 +2667,13 @@ function __boot() {
     }, [user, series]);
 
     return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ background: 'rgba(28, 25, 23, 0.55)' }}>
         <div className="bg-stone-900 border-t sm:border border-stone-700 w-full max-w-lg max-h-[90vh] overflow-y-auto">
           <div className="sticky top-0 bg-stone-900 border-b border-stone-800 p-4 flex items-center justify-between">
             <div className="flex items-center gap-3 min-w-0">
               <div
                 className="w-12 h-12 flex items-center justify-center font-serif text-lg flex-shrink-0 border border-stone-700"
-                style={user.avatar ? { background: `url(${user.avatar}) center/cover` } : { background: '#292524' }}
+                style={user.avatar ? { background: `url(${user.avatar}) center/cover` } : { background: '#f5ecd5' }}
               >
                 {!user.avatar && user.name.charAt(0).toUpperCase()}
               </div>
@@ -2662,9 +2693,15 @@ function __boot() {
                   <span className="font-mono uppercase tracking-wider hidden sm:inline">Compare</span>
                 </button>
               )}
-              <button onClick={onClose} className="p-2 hover:bg-stone-800">
-                <X size={18} />
-              </button>
+              <button
+              onClick={onClose}
+              className="flex-shrink-0 flex items-center justify-center w-9 h-9 transition-colors"
+              style={{ background: '#ffffff', color: '#1c1917', border: '2px solid #1c1917' }}
+              title="Close"
+              aria-label="Close"
+            >
+              <X size={18} strokeWidth={2.5} />
+            </button>
             </div>
           </div>
 
@@ -2685,7 +2722,7 @@ function __boot() {
                   >
                     <div
                       className="w-5 h-5 flex items-center justify-center font-serif text-[10px] border border-stone-700"
-                      style={opp.avatar ? { background: `url(${opp.avatar}) center/cover` } : { background: '#292524' }}
+                      style={opp.avatar ? { background: `url(${opp.avatar}) center/cover` } : { background: '#f5ecd5' }}
                     >
                       {!opp.avatar && opp.name.charAt(0).toUpperCase()}
                     </div>
@@ -2874,7 +2911,25 @@ function __boot() {
   // HEAD-TO-HEAD COMPARISON
   // Shows two players side by side, focused on series where they bet differently.
   // ============================================================================
-  function HeadToHeadModal({ userA, userB, series, liveGames, onClose, onSeriesClick, onSwitchTo }) {
+  function HeadToHeadModal({ userA, userB, series, liveGames, onClose, onBack, onSeriesClick, onSwitchTo }) {
+    useEscapeKey(onClose);
+    const scrollRef = React.useRef(null);
+
+    // Scroll modal content to top when opened or when switching focus between users.
+    // Using useLayoutEffect + rAF so the reset happens after paint, ensuring the
+    // scroll container is fully rendered and scrollable before we try to scroll it.
+    React.useLayoutEffect(() => {
+      const scrollToTop = () => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = 0;
+        }
+      };
+      scrollToTop();
+      // Run again on next frame in case content height changes after paint
+      const raf = requestAnimationFrame(scrollToTop);
+      return () => cancelAnimationFrame(raf);
+    }, [userA.id, userB.id]);
+
     const calcBetPts = (bet, s, winner, totalGames) => {
       if (!winner) return 0;
       if (bet.winner !== winner) return 0;
@@ -2985,19 +3040,44 @@ function __boot() {
     const allEntries = [...data.live, ...data.settled, ...data.pending];
 
     return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <div className="bg-stone-900 border-t sm:border border-stone-700 w-full max-w-xl max-h-[90vh] overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ background: 'rgba(28, 25, 23, 0.55)' }}>
+        <div ref={scrollRef} className="bg-stone-900 border-t sm:border border-stone-700 w-full max-w-xl max-h-[90vh] overflow-y-auto">
           {/* Header */}
-          <div className="sticky top-0 bg-stone-900 border-b border-stone-800 p-4 flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0">
-              <Swords size={16} className="text-stone-400 flex-shrink-0" />
+          <div className="sticky top-0 bg-stone-900 border-b-2 border-stone-900 p-3 flex items-center justify-between gap-2 z-10">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              {onBack && (
+                <button
+                  onClick={onBack}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 transition-colors"
+                  style={{
+                    background: '#ffffff',
+                    color: '#1c1917',
+                    border: '2px solid #1c1917',
+                  }}
+                  title="Back to profile"
+                  aria-label="Back to profile"
+                >
+                  <span className="text-base leading-none font-bold">←</span>
+                  <span className="font-mono text-[10px] uppercase tracking-wider font-bold">Back</span>
+                </button>
+              )}
               <div className="min-w-0">
-                <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-stone-400 mb-0.5">Head to Head</div>
-                <div className="font-serif text-lg truncate">{userA.name} vs {userB.name}</div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-stone-500 mb-0.5">Head to Head</div>
+                <div className="font-display text-lg truncate uppercase">{userA.name} vs {userB.name}</div>
               </div>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-stone-800 flex-shrink-0">
-              <X size={18} />
+            <button
+              onClick={onClose}
+              className="flex-shrink-0 flex items-center justify-center w-9 h-9 transition-colors"
+              style={{
+                background: '#ffffff',
+                color: '#1c1917',
+                border: '2px solid #1c1917',
+              }}
+              title="Close"
+              aria-label="Close"
+            >
+              <X size={18} strokeWidth={2.5} />
             </button>
           </div>
 
@@ -3014,7 +3094,7 @@ function __boot() {
                 >
                   <div
                     className="w-12 h-12 flex items-center justify-center font-serif border border-stone-700"
-                    style={userA.avatar ? { background: `url(${userA.avatar}) center/cover` } : { background: '#292524' }}
+                    style={userA.avatar ? { background: `url(${userA.avatar}) center/cover` } : { background: '#f5ecd5' }}
                   >
                     {!userA.avatar && userA.name.charAt(0).toUpperCase()}
                   </div>
@@ -3030,7 +3110,7 @@ function __boot() {
                 >
                   <div
                     className="w-12 h-12 flex items-center justify-center font-serif border border-stone-700"
-                    style={userB.avatar ? { background: `url(${userB.avatar}) center/cover` } : { background: '#292524' }}
+                    style={userB.avatar ? { background: `url(${userB.avatar}) center/cover` } : { background: '#f5ecd5' }}
                   >
                     {!userB.avatar && userB.name.charAt(0).toUpperCase()}
                   </div>
@@ -3216,7 +3296,105 @@ function __boot() {
     );
   }
 
+  // ============================================================================
+  // RULES MODAL — explains scoring and how the pool works
+  // ============================================================================
+  function RulesModal({ onClose }) {
+    useEscapeKey(onClose);
+    return (
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ background: 'rgba(28, 25, 23, 0.55)' }}>
+        <div className="bg-stone-900 border-2 border-stone-900 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="sticky top-0 bg-stone-900 border-b-2 border-stone-900 p-4 flex items-center justify-between z-10">
+            <div className="flex items-center gap-2">
+              <HelpCircle size={18} />
+              <h2 className="font-display text-xl uppercase">How it works</h2>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex-shrink-0 flex items-center justify-center w-9 h-9 transition-colors"
+              style={{ background: '#ffffff', color: '#1c1917', border: '2px solid #1c1917' }}
+              title="Close"
+              aria-label="Close"
+            >
+              <X size={18} strokeWidth={2.5} />
+            </button>
+          </div>
+
+          <div className="p-5 space-y-5 text-sm leading-relaxed">
+
+            <section>
+              <h3 className="font-display text-base uppercase mb-2">The Pool</h3>
+              <p>
+                Each player picks the winner of every NBA playoff series, plus their NBA champion before the playoffs start.
+                The picks are locked in — no changes once a series begins.
+              </p>
+            </section>
+
+            <section>
+              <h3 className="font-display text-base uppercase mb-2">Scoring</h3>
+              <div className="space-y-2.5">
+                <div className="flex items-baseline gap-3 bg-amber-50 border-2 border-stone-900 p-2.5">
+                  <div className="font-display text-2xl tabular-nums w-10 text-center">2</div>
+                  <div className="text-xs">
+                    <div className="font-bold uppercase tracking-wider">Correct winner</div>
+                    <div className="text-stone-700 mt-0.5">You picked the team that wins the series.</div>
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-3 bg-amber-50 border-2 border-stone-900 p-2.5">
+                  <div className="font-display text-2xl tabular-nums w-10 text-center">+1</div>
+                  <div className="text-xs">
+                    <div className="font-bold uppercase tracking-wider">Exact games (bonus)</div>
+                    <div className="text-stone-700 mt-0.5">
+                      On top of the 2pts, if both the winner AND the losing team match what you picked AND the series goes
+                      the exact number of games you predicted. All three have to match — no partial credit.
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-3 bg-amber-50 border-2 border-stone-900 p-2.5">
+                  <div className="font-display text-2xl tabular-nums w-10 text-center">5</div>
+                  <div className="text-xs">
+                    <div className="font-bold uppercase tracking-wider">NBA champion</div>
+                    <div className="text-stone-700 mt-0.5">
+                      A separate pick made before round 1 starts. Awarded only when the Finals end.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="font-display text-base uppercase mb-2">A few details</h3>
+              <ul className="space-y-2 list-disc pl-5 text-xs">
+                <li>
+                  <span className="font-semibold">Round 2+ picks count even if your team didn't make it.</span> If you picked
+                  "Spurs over Nuggets in 6" but Spurs end up playing Wolves, you still get 2pts for picking Spurs.
+                  You just can't get the games bonus since the matchup didn't match.
+                </li>
+                <li>
+                  <span className="font-semibold">Live scores</span> come from ESPN's public scoreboard.
+                  The bracket auto-updates within a minute of a game ending.
+                </li>
+                <li>
+                  <span className="font-semibold">In-progress series</span> show projected points if a decisive game is happening.
+                  The leaderboard marks them with arrows (↑ you'd gain, ↓ you'd lose).
+                </li>
+              </ul>
+            </section>
+
+            <section className="pt-2 border-t-2 border-stone-900">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-stone-600 text-center">
+                Questions? Ask the admin.
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+
   function AdminLogin({ onSuccess, onClose, expectedPassword }) {
+    useEscapeKey(onClose);
     const [pw, setPw] = useState('');
     const [err, setErr] = useState(false);
     const [errMsg, setErrMsg] = useState('');
@@ -3237,12 +3415,18 @@ function __boot() {
     };
 
     return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(28, 25, 23, 0.55)' }}>
         <div className="bg-stone-900 border border-stone-700 w-full max-w-sm p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-emerald-500">Admin Access</div>
-            <button onClick={onClose}>
-              <X size={16} />
+            <button
+              onClick={onClose}
+              className="flex-shrink-0 flex items-center justify-center w-9 h-9 transition-colors"
+              style={{ background: '#ffffff', color: '#1c1917', border: '2px solid #1c1917' }}
+              title="Close"
+              aria-label="Close"
+            >
+              <X size={18} strokeWidth={2.5} />
             </button>
           </div>
           <input
@@ -3280,6 +3464,7 @@ function __boot() {
     const [isAdmin, setIsAdmin] = useState(false);   // password unlocks admin within edit mode
     const [showAdminLogin, setShowAdminLogin] = useState(false);
     const [showAdminPanel, setShowAdminPanel] = useState(false);
+    const [showRules, setShowRules] = useState(false);
     const [activeSeries, setActiveSeries] = useState(null);
     const [profileUserId, setProfileUserId] = useState(null);
     const [compareUserId, setCompareUserId] = useState(null); // set together with profileUserId for H2H
@@ -3523,23 +3708,23 @@ function __boot() {
     // Config missing → friendly setup screen
     if (loaded && (!config.key || !config.basket)) {
       return (
-        <div className="min-h-screen bg-stone-950 text-stone-100 flex items-center justify-center p-6" style={{ fontFamily: "'IBM Plex Sans', system-ui, sans-serif" }}>
+        <div className="min-h-screen flex items-center justify-center p-6" style={{ fontFamily: "'Archivo', system-ui, sans-serif", background: '#ede2c8', color: '#1c1917' }}>
           <style>{`
-            @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
-            .font-serif { font-family: 'DM Serif Display', serif; }
+            @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+            .font-serif, .font-display { font-family: 'Archivo Black', sans-serif; }
             .font-mono { font-family: 'JetBrains Mono', monospace; }
           `}</style>
-          <div className="max-w-md w-full bg-stone-900 border border-stone-800 p-6">
-            <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-amber-400 mb-2">Setup required</div>
-            <h1 className="font-serif text-2xl mb-3">Missing pool config</h1>
-            <p className="text-sm text-stone-400 leading-relaxed mb-4">
+          <div className="max-w-md w-full bg-white border-2 border-stone-900 p-6">
+            <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-orange-700 font-bold mb-2">Setup required</div>
+            <h1 className="font-display text-2xl mb-3 uppercase">Missing pool config</h1>
+            <p className="text-sm leading-relaxed mb-4">
               This page needs a Pantry key and basket name to load the playoff pool. Add them to the URL like this:
             </p>
-            <div className="bg-stone-950 border border-stone-800 p-3 font-mono text-[10px] text-stone-300 break-all leading-relaxed mb-4">
-              {window.location.origin}{window.location.pathname}<span className="text-emerald-400">#key=YOUR_KEY&basket=YOUR_BASKET</span>
+            <div className="bg-amber-50 border-2 border-stone-900 p-3 font-mono text-[10px] break-all leading-relaxed mb-4">
+              {window.location.origin}{window.location.pathname}<span className="text-orange-700 font-bold">#key=YOUR_KEY&basket=YOUR_BASKET</span>
             </div>
-            <p className="text-xs text-stone-500 leading-relaxed">
-              Add <span className="font-mono text-stone-400">&edit=1</span> at the end if you're the admin.
+            <p className="text-xs leading-relaxed text-stone-700">
+              Add <span className="font-mono font-bold">&edit=1</span> at the end if you're the admin.
             </p>
           </div>
         </div>
@@ -3547,72 +3732,225 @@ function __boot() {
     }
 
     return (
-      <div className="min-h-screen bg-stone-950 text-stone-100" style={{ fontFamily: "'IBM Plex Sans', system-ui, sans-serif" }}>
+      <div className="min-h-screen text-stone-900" style={{ fontFamily: "'Archivo', system-ui, sans-serif" }}>
         <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
-          body { background: #0c0a09; }
-          .font-serif { font-family: 'DM Serif Display', serif; }
-          .font-mono { font-family: 'JetBrains Mono', monospace; }
-          .court-bg {
-            background-image:
-              radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
-              repeating-linear-gradient(90deg, transparent 0px, transparent 79px, rgba(255,255,255,0.02) 79px, rgba(255,255,255,0.02) 80px);
+          @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+          :root {
+            --paper: #ede2c8;
+            --paper-light: #f5ecd5;
+            --paper-card: #ffffff;
+            --paper-card-leader: #fde68a;
+            --ink: #1c1917;
+            --ink-soft: #57534e;
+            --ink-muted: #78716c;
+            --rule: #1c1917;
+            --terracotta: #b91c1c;
+            --terracotta-soft: #c2410c;
+            --emerald: #047857;
+            --gold: #f59e0b;
+            --gold-bg: #fde68a;
           }
+
+          body {
+            background: var(--paper);
+            /* Subtle wood-grain pattern */
+            background-image:
+              repeating-linear-gradient(90deg,
+                rgba(166, 110, 47, 0.018) 0px,
+                rgba(166, 110, 47, 0.018) 1px,
+                transparent 1px,
+                transparent 4px),
+              repeating-linear-gradient(0deg,
+                rgba(166, 110, 47, 0.012) 0px,
+                rgba(166, 110, 47, 0.012) 1px,
+                transparent 1px,
+                transparent 80px);
+          }
+
+          .font-serif, .font-display { font-family: 'Archivo Black', sans-serif; letter-spacing: -0.01em; }
+          .font-mono { font-family: 'JetBrains Mono', monospace; }
+          .court-bg { /* legacy class — now no-op */ }
+
+          /* ===== Tailwind dark-mode color overrides ===== */
+          /* Backgrounds: dark-mode → cream-paper system */
+          .bg-stone-950 { background-color: var(--paper) !important; }
+          .bg-stone-900 { background-color: var(--paper-card) !important; }
+          .bg-stone-800 { background-color: var(--paper-light) !important; }
+          .bg-stone-800\\/50 { background-color: var(--paper-light) !important; }
+          .bg-stone-800\\/60 { background-color: var(--paper-light) !important; }
+          .bg-stone-950\\/60 { background-color: var(--paper-light) !important; }
+          .bg-stone-950\\/40 { background-color: var(--paper-light) !important; }
+          .hover\\:bg-stone-800:hover { background-color: var(--paper-light) !important; }
+          .hover\\:bg-stone-800\\/50:hover { background-color: var(--paper-light) !important; }
+
+          /* Text colors */
+          .text-stone-100, .text-stone-200, .text-stone-300, .text-white { color: var(--ink) !important; }
+          .text-stone-400 { color: var(--ink-soft) !important; }
+          .text-stone-500, .text-stone-600 { color: var(--ink-muted) !important; }
+
+          /* Borders: subtle gray → solid black hairline */
+          .border-stone-800, .border-stone-700, .border-stone-900 { border-color: var(--ink) !important; }
+          .divide-stone-800 > * + * { border-color: var(--ink) !important; }
+
+          /* Amber leader styling — bumped saturation for the warm paper bg */
+          .bg-amber-950\\/40, .bg-amber-950\\/20 { background-color: var(--paper-card-leader) !important; }
+          .border-amber-700\\/40, .border-amber-700\\/30, .border-amber-700\\/20 { border-color: var(--gold) !important; }
+          .text-amber-200, .text-amber-300, .text-amber-400 { color: #92400e !important; }
+          .text-amber-200\\/80, .text-amber-300\\/80, .text-amber-400\\/80, .text-amber-300\\/70, .text-amber-400\\/70, .text-amber-400\\/60 { color: #92400e !important; }
+
+          /* Red / live indicators — keep red, slightly desaturate */
+          .text-red-400, .text-red-500 { color: var(--terracotta) !important; }
+          .bg-red-500 { background-color: var(--terracotta) !important; }
+          .border-red-500\\/60, .border-red-900\\/40 { border-color: var(--terracotta) !important; }
+          .bg-red-950\\/40 { background-color: #fee2e2 !important; }
+
+          /* Emerald — leader/correct picks */
+          .bg-emerald-950, .bg-emerald-950\\/30 { background-color: #d1fae5 !important; }
+          .border-emerald-800, .border-emerald-500 { border-color: var(--emerald) !important; }
+          .text-emerald-300, .text-emerald-400, .text-emerald-500 { color: var(--emerald) !important; }
+          .bg-emerald-600, .bg-emerald-500 { background-color: var(--emerald) !important; }
+
+          /* Background gradients — flatten to solid paper */
+          .bg-gradient-to-br { background: var(--paper-card) !important; background-image: none !important; }
+
+          /* ===== Mockup C signature touches ===== */
+          /* (Removed universal border-width override — it was turning border-t-only
+             rules into 4-sided boxes. Components now manage their own border widths
+             via Tailwind classes like border-2 directly.) */
+
+          /* Buttons in the header / actions */
+          button.border, button[class*="border-stone"] {
+            border-radius: 0;
+          }
+
+          /* Force monospace numbers everywhere we want them */
+          .tabular-nums { font-variant-numeric: tabular-nums; }
+
+          /* Tighter line-height for the chunky display font */
+          h1, h2, h3, .font-serif, .font-display { line-height: 1.05; }
+
+          /* Inputs */
+          input[type="text"], input[type="password"], input[type="number"] {
+            background-color: var(--paper-light) !important;
+            color: var(--ink) !important;
+            border: 2px solid var(--ink) !important;
+            border-radius: 0 !important;
+          }
+          input::placeholder { color: var(--ink-muted) !important; }
+
+          /* Range slider styling for the score chart playback */
+          input[type="range"] { accent-color: var(--terracotta); }
+
+          /* Scrollbar tone for paper bg */
+          ::-webkit-scrollbar { width: 8px; height: 8px; }
+          ::-webkit-scrollbar-thumb { background: var(--ink-muted); border-radius: 0; }
+          ::-webkit-scrollbar-track { background: var(--paper-light); }
         `}</style>
 
-        <div className="court-bg min-h-screen">
+        <div className="min-h-screen">
           {/* Header */}
-          <header className="border-b border-stone-800 bg-stone-950/80 backdrop-blur sticky top-0 z-40">
+          <header
+            className="sticky top-0 z-40"
+            style={{
+              background: '#f5ecd5',
+              borderBottom: '3px solid #1c1917',
+              boxShadow: '0 3px 0 0 #f59e0b',
+            }}
+          >
             <div className="max-w-6xl mx-auto px-4 py-3">
               <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-9 h-9 bg-emerald-600 flex items-center justify-center flex-shrink-0">
-                    <Zap size={16} className="text-white" />
+                {/* Logo + title */}
+                <div className="flex items-center gap-3 min-w-0">
+                  {/* Basketball logo — orange circle with seam pattern */}
+                  <div className="relative w-11 h-11 flex-shrink-0">
+                    <svg viewBox="0 0 44 44" className="w-full h-full" style={{ filter: 'drop-shadow(2px 2px 0 #1c1917)' }}>
+                      <circle cx="22" cy="22" r="20" fill="#ea580c" stroke="#1c1917" strokeWidth="2.5" />
+                      <path d="M 22 2 L 22 42" stroke="#1c1917" strokeWidth="2" fill="none" />
+                      <path d="M 2 22 L 42 22" stroke="#1c1917" strokeWidth="2" fill="none" />
+                      <path d="M 4 11 Q 22 22 4 33" stroke="#1c1917" strokeWidth="2" fill="none" />
+                      <path d="M 40 11 Q 22 22 40 33" stroke="#1c1917" strokeWidth="2" fill="none" />
+                    </svg>
                   </div>
                   <div className="min-w-0">
-                    <div className="font-serif text-lg leading-none truncate">Playoff Pool</div>
-                    <div className="font-mono text-[9px] uppercase tracking-[0.25em] text-stone-500">2026 NBA Postseason</div>
+                    <div
+                      className="font-display text-xl leading-none truncate uppercase"
+                      style={{ color: '#1c1917', letterSpacing: '0.01em' }}
+                    >
+                      Sunnyvale Playoffs
+                    </div>
+                    <div className="font-mono text-[9px] uppercase tracking-[0.3em] mt-1" style={{ color: '#92400e' }}>
+                      2026 NBA Postseason
+                    </div>
                   </div>
                 </div>
+
+                {/* Right-side controls */}
                 <div className="flex items-center gap-1.5">
-                  {/* Last update timestamp — visible to everyone */}
+                  {/* Last update — subtle, on light header */}
                   {lastSync && (
-                    <div className="hidden md:flex items-center gap-1 px-2 py-1.5 text-[10px] font-mono text-stone-500">
+                    <div className="hidden md:flex items-center gap-1 px-2 py-1.5 text-[10px] font-mono" style={{ color: '#78716c' }}>
                       <RelativeTime iso={lastSync} prefix="updated " />
                     </div>
                   )}
 
-                  {/* Sync (refetch ESPN) — available to everyone */}
+                  {/* Sync */}
                   <button
                     onClick={handleSync}
                     disabled={syncing}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-stone-900 hover:bg-stone-800 border border-stone-800 transition-colors text-xs"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 transition-colors text-xs"
+                    style={{
+                      background: '#ffffff',
+                      color: '#1c1917',
+                      border: '2px solid #1c1917',
+                    }}
                     title={`Last sync: ${formatLastSync()}`}
                   >
                     <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
                     <span className="font-mono uppercase tracking-wider hidden sm:inline">{syncing ? 'Syncing' : 'Sync'}</span>
                   </button>
 
-                  {/* Hard refresh — reload the page */}
+                  {/* Reload */}
                   <button
                     onClick={handleHardRefresh}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-stone-900 hover:bg-stone-800 border border-stone-800 transition-colors text-xs"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 transition-colors text-xs"
+                    style={{
+                      background: '#ffffff',
+                      color: '#1c1917',
+                      border: '2px solid #1c1917',
+                    }}
                     title="Hard refresh (reload the page)"
                   >
                     <RotateCcw size={12} />
                     <span className="font-mono uppercase tracking-wider hidden md:inline">Reload</span>
                   </button>
 
-                  {!isEditor ? (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-950/40 border border-amber-700/40 text-xs">
-                      <Eye size={12} className="text-amber-400" />
-                      <span className="font-mono uppercase tracking-wider text-amber-300 hidden sm:inline">Viewer</span>
-                    </div>
-                  ) : (
+                  {/* Rules */}
+                  <button
+                    onClick={() => setShowRules(true)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 transition-colors text-xs"
+                    style={{
+                      background: '#ffffff',
+                      color: '#1c1917',
+                      border: '2px solid #1c1917',
+                    }}
+                    title="How scoring works"
+                  >
+                    <HelpCircle size={12} />
+                    <span className="font-mono uppercase tracking-wider hidden sm:inline">Rules</span>
+                  </button>
+
+                  {/* Editor-only: Share + Admin */}
+                  {isEditor && (
                     <>
                       <button
                         onClick={handleShareViewerLink}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-stone-900 hover:bg-stone-800 border border-stone-800 text-xs"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 transition-colors text-xs"
+                        style={{
+                          background: '#ffffff',
+                          color: '#1c1917',
+                          border: '2px solid #1c1917',
+                        }}
                         title="Copy viewer link"
                       >
                         <Share2 size={12} />
@@ -3621,7 +3959,12 @@ function __boot() {
                       {isAdmin ? (
                         <button
                           onClick={() => setShowAdminPanel(true)}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 text-xs"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 transition-colors text-xs"
+                          style={{
+                            background: '#047857',
+                            color: '#ffffff',
+                            border: '2px solid #1c1917',
+                          }}
                         >
                           <Users size={12} />
                           <span className="font-mono uppercase tracking-wider hidden sm:inline">Admin</span>
@@ -3629,7 +3972,12 @@ function __boot() {
                       ) : (
                         <button
                           onClick={() => setShowAdminLogin(true)}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-stone-900 hover:bg-stone-800 border border-stone-800 text-xs"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 transition-colors text-xs"
+                          style={{
+                            background: '#ffffff',
+                            color: '#1c1917',
+                            border: '2px solid #1c1917',
+                          }}
                         >
                           <Lock size={12} />
                           <span className="font-mono uppercase tracking-wider hidden sm:inline">Admin</span>
@@ -3662,7 +4010,7 @@ function __boot() {
                     >
                       <div
                         className="w-5 h-5 flex items-center justify-center font-serif text-[10px]"
-                        style={u.avatar ? { background: `url(${u.avatar}) center/cover` } : { background: '#292524' }}
+                        style={u.avatar ? { background: `url(${u.avatar}) center/cover` } : { background: '#f5ecd5' }}
                       >
                         {!u.avatar && u.name.charAt(0).toUpperCase()}
                       </div>
@@ -3763,12 +4111,9 @@ function __boot() {
               <ScoreHistory users={users} series={series} onUserClick={setProfileUserId} />
             )}
 
-            {/* 6. Hot takes + recent events side by side on desktop, stacked on mobile */}
+            {/* Recent events feed */}
             {users.length > 0 && (
-              <div className="grid lg:grid-cols-2 gap-3">
-                <HotTakes users={users} series={series} onSeriesClick={setActiveSeries} />
-                <RecentEvents users={users} series={series} onSeriesClick={setActiveSeries} />
-              </div>
+              <RecentEvents users={users} series={series} onSeriesClick={setActiveSeries} />
             )}
 
             {/* Empty / read-only states */}
@@ -3792,6 +4137,7 @@ function __boot() {
         </div>
 
         {/* Modals */}
+        {showRules && <RulesModal onClose={() => setShowRules(false)} />}
         {showAdminLogin && (
           <AdminLogin
             expectedPassword={adminPassword}
@@ -3852,9 +4198,14 @@ function __boot() {
               userB={userB}
               series={series}
               liveGames={liveData.games}
-              onClose={() => {
+              onBack={() => {
+                // Back to profile only — clear compare, keep profile
                 setCompareUserId(null);
-                // Keep profile open so they can compare to someone else
+              }}
+              onClose={() => {
+                // X closes everything
+                setCompareUserId(null);
+                setProfileUserId(null);
               }}
               onSeriesClick={(s) => {
                 setProfileUserId(null);
@@ -3862,12 +4213,10 @@ function __boot() {
                 setActiveSeries(s);
               }}
               onSwitchTo={(uid) => {
-                // If user taps userB's avatar, swap so they become the focus
                 if (uid === userB.id) {
                   setProfileUserId(userB.id);
                   setCompareUserId(userA.id);
                 }
-                // tapping userA does nothing — they're already focused
               }}
             />
           );
