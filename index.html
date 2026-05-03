@@ -2016,6 +2016,223 @@ function __boot() {
     );
   }
 
+  // ============================================================================
+  // RELATIVE TIME — small helper that re-renders to keep "30s ago" fresh
+  // ============================================================================
+  function RelativeTime({ iso, prefix = '' }) {
+    const [, force] = useState(0);
+    useEffect(() => {
+      const t = setInterval(() => force((n) => n + 1), 15000);
+      return () => clearInterval(t);
+    }, []);
+    if (!iso) return <span className="text-stone-600">{prefix}never</span>;
+    const ago = Date.now() - new Date(iso).getTime();
+    const sec = Math.floor(ago / 1000);
+    let txt;
+    if (sec < 10) txt = 'just now';
+    else if (sec < 60) txt = `${sec}s ago`;
+    else if (sec < 3600) txt = `${Math.floor(sec / 60)}m ago`;
+    else if (sec < 86400) txt = `${Math.floor(sec / 3600)}h ago`;
+    else txt = `${Math.floor(sec / 86400)}d ago`;
+    return <span>{prefix}{txt}</span>;
+  }
+
+  // ============================================================================
+  // LIVE GAME BANNER — shown only when an NBA playoff game is in progress
+  // ============================================================================
+  function LiveGameBanner({ series, liveGames, onSeriesClick }) {
+    const liveSeries = useMemo(() => {
+      return series
+        .map((s) => ({ s, lg: findLiveGameForSeries(s, liveGames) }))
+        .filter(({ lg }) => lg && lg.statusState === 'in');
+    }, [series, liveGames]);
+
+    if (!liveSeries.length) return null;
+
+    return (
+      <div className="space-y-2 mb-3">
+        {liveSeries.map(({ s, lg }) => {
+          const homeColor = TEAM_DATA[lg.homeTeam]?.color || '#78716c';
+          const awayColor = TEAM_DATA[lg.awayTeam]?.color || '#78716c';
+          const homeWinning = lg.homeScore > lg.awayScore;
+          const tied = lg.homeScore === lg.awayScore;
+          return (
+            <button
+              key={s.id}
+              onClick={() => onSeriesClick(s)}
+              className="w-full bg-stone-900 border border-stone-800 hover:border-red-500/60 transition-colors text-left overflow-hidden"
+            >
+              {/* Top strip: LIVE pill + clock */}
+              <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                    <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-red-400 font-bold">Live</span>
+                  </div>
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-stone-500">
+                    {s.conf} · {SERIES_LABELS[s.id] || s.id}
+                  </span>
+                </div>
+                <span className="font-mono text-[10px] tabular-nums text-stone-300">
+                  Q{lg.period} · {lg.clock}
+                </span>
+              </div>
+
+              {/* Score line */}
+              <div className="flex items-stretch">
+                <div className="flex-1 flex items-center justify-between px-3 py-3 border-r border-stone-800" style={{ borderLeft: `3px solid ${awayColor}` }}>
+                  <div>
+                    <div className="font-serif text-sm">{TEAM_DATA[lg.awayTeam]?.name || lg.awayTeam}</div>
+                    <div className="font-mono text-[10px] text-stone-500">away</div>
+                  </div>
+                  <div className={`font-mono text-2xl tabular-nums ${!homeWinning && !tied ? 'text-white font-bold' : 'text-stone-400'}`}>
+                    {lg.awayScore}
+                  </div>
+                </div>
+                <div className="flex-1 flex items-center justify-between px-3 py-3" style={{ borderRight: `3px solid ${homeColor}` }}>
+                  <div className={`font-mono text-2xl tabular-nums ${homeWinning && !tied ? 'text-white font-bold' : 'text-stone-400'}`}>
+                    {lg.homeScore}
+                  </div>
+                  <div className="text-right">
+                    <div className="font-serif text-sm">{TEAM_DATA[lg.homeTeam]?.name || lg.homeTeam}</div>
+                    <div className="font-mono text-[10px] text-stone-500">home</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Series context */}
+              <div className="px-3 py-2 bg-stone-950/60 border-t border-stone-800 font-mono text-[10px] text-stone-400 text-center">
+                Series: {s.high} {s.highWins} – {s.lowWins} {s.low}
+                {(s.highWins === 3 || s.lowWins === 3) && (
+                  <span className="ml-2 text-amber-400 font-bold">· decisive game</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // ============================================================================
+  // LEADER SHOWCASE — big top-of-page card highlighting the current leader(s)
+  // ============================================================================
+  function LeaderShowcase({ users, series, onUserClick }) {
+    const ranked = useMemo(() => {
+      const scored = users.map((u) => {
+        const { points, breakdown } = calcPoints(u.bets || {}, series, u.champion);
+        return { user: u, points, breakdown };
+      });
+      return scored.sort((a, b) => b.points - a.points);
+    }, [users, series]);
+
+    if (!ranked.length) return null;
+
+    const top = ranked[0];
+    const second = ranked[1];
+    // Identify ties at the top
+    const leaders = ranked.filter((r) => r.points === top.points);
+    const isTie = leaders.length > 1;
+
+    // Lead margin over next non-tied player
+    const nextNonTied = ranked.find((r) => r.points < top.points);
+    const lead = nextNonTied ? top.points - nextNonTied.points : null;
+
+    // Color palette matching ScoreHistory legend
+    const palette = ['#34d399', '#60a5fa', '#f472b6', '#fbbf24', '#a78bfa', '#fb923c', '#22d3ee', '#f87171'];
+    const colorFor = (id) => {
+      let h = 0;
+      for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+      return palette[Math.abs(h) % palette.length];
+    };
+
+    return (
+      <div className="bg-gradient-to-br from-amber-950/40 via-stone-900 to-stone-900 border border-amber-700/40 mb-3 overflow-hidden">
+        <div className="px-3 pt-3 pb-2 flex items-center justify-between border-b border-amber-700/20">
+          <div className="flex items-center gap-2">
+            <Crown size={14} className="text-amber-400" />
+            <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-amber-300">
+              {isTie ? `Tied at #1 · ${leaders.length} players` : 'Current Leader'}
+            </span>
+          </div>
+          {lead != null && !isTie && (
+            <span className="font-mono text-[10px] tabular-nums text-amber-300/80">
+              +{lead} over {nextNonTied.user.name.split(' ')[0]}
+            </span>
+          )}
+        </div>
+
+        {/* If tied: show all leaders side by side. If solo: hero treatment */}
+        {isTie ? (
+          <div className="p-3 flex items-center gap-3 overflow-x-auto">
+            {leaders.map((r) => {
+              const color = colorFor(r.user.id);
+              return (
+                <button
+                  key={r.user.id}
+                  onClick={() => onUserClick(r.user.id)}
+                  className="flex-shrink-0 flex flex-col items-center gap-1.5"
+                >
+                  <div
+                    className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center"
+                    style={{
+                      background: r.user.avatar ? `center/cover url(${r.user.avatar})` : '#1c1917',
+                      border: `3px solid ${color}`,
+                    }}
+                  >
+                    {!r.user.avatar && (
+                      <span className="font-serif text-xl" style={{ color }}>{r.user.name.charAt(0).toUpperCase()}</span>
+                    )}
+                  </div>
+                  <div className="font-serif text-sm">{r.user.name.split(' ')[0]}</div>
+                </button>
+              );
+            })}
+            <div className="flex-shrink-0 ml-2 pl-3 border-l border-amber-700/20">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-amber-400 mb-0.5">Score</div>
+              <div className="font-serif text-3xl text-amber-200 tabular-nums">{top.points}</div>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => onUserClick(top.user.id)} className="w-full p-4 flex items-center gap-4 hover:bg-amber-950/20 transition-colors">
+            <div
+              className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
+              style={{
+                background: top.user.avatar ? `center/cover url(${top.user.avatar})` : '#1c1917',
+                border: `3px solid ${colorFor(top.user.id)}`,
+                boxShadow: '0 0 24px rgba(251, 191, 36, 0.25)',
+              }}
+            >
+              {!top.user.avatar && (
+                <span className="font-serif text-3xl" style={{ color: colorFor(top.user.id) }}>
+                  {top.user.name.charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <div className="font-serif text-2xl truncate">{top.user.name}</div>
+              <div className="font-mono text-[10px] uppercase tracking-wider text-amber-400/80 mt-0.5">
+                {top.breakdown.winners}pts winners
+                {top.breakdown.games > 0 && ` · ${top.breakdown.games}pts games`}
+                {top.breakdown.champion > 0 && ` · ${top.breakdown.champion}pts champ`}
+              </div>
+              {top.user.champion && (
+                <div className="font-mono text-[10px] text-stone-400 mt-1">
+                  champion pick: <span style={{ color: TEAM_DATA[top.user.champion]?.color || '#a8a29e' }}>{top.user.champion}</span>
+                </div>
+              )}
+            </div>
+            <div className="text-right">
+              <div className="font-serif text-5xl text-amber-200 tabular-nums leading-none">{top.points}</div>
+              <div className="font-mono text-[10px] uppercase tracking-wider text-amber-400/70 mt-1">points</div>
+            </div>
+          </button>
+        )}
+      </div>
+    );
+  }
+
+
   function Leaderboard({ users, series, liveGames, onUserClick }) {
     // Detect any live games that affect bracket outcome
     const liveDecisiveSeries = useMemo(() => {
@@ -3236,6 +3453,28 @@ function __boot() {
       setSyncing(false);
     };
 
+    // Hard refresh — bust browser cache for the page itself.
+    // Useful after admin pushes a new build, or when something feels stale.
+    const handleHardRefresh = () => {
+      // Force reload bypassing cache. Pass `true` to reload() in older browsers,
+      // but modern spec ignores it; the location.reload trick with no-cache headers
+      // would require server cooperation. For our static-hosted app, a plain reload
+      // works since we control hosting and HTTP caching is short.
+      window.location.reload();
+    };
+
+    // Auto-refresh ESPN data every 30 seconds.
+    // Runs once on mount too so we get fresh data immediately.
+    useEffect(() => {
+      handleSync();
+      const t = setInterval(() => {
+        // Skip if a manual sync is already in flight
+        if (!syncing) handleSync();
+      }, 30000);
+      return () => clearInterval(t);
+      // eslint-disable-next-line
+    }, []);
+
     const handleShareViewerLink = async () => {
       // Viewer URL needs key+basket too (Pantry requires key for reads), but no edit flag.
       const params = new URLSearchParams();
@@ -3336,6 +3575,34 @@ function __boot() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
+                  {/* Last update timestamp — visible to everyone */}
+                  {lastSync && (
+                    <div className="hidden md:flex items-center gap-1 px-2 py-1.5 text-[10px] font-mono text-stone-500">
+                      <RelativeTime iso={lastSync} prefix="updated " />
+                    </div>
+                  )}
+
+                  {/* Sync (refetch ESPN) — available to everyone */}
+                  <button
+                    onClick={handleSync}
+                    disabled={syncing}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-stone-900 hover:bg-stone-800 border border-stone-800 transition-colors text-xs"
+                    title={`Last sync: ${formatLastSync()}`}
+                  >
+                    <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
+                    <span className="font-mono uppercase tracking-wider hidden sm:inline">{syncing ? 'Syncing' : 'Sync'}</span>
+                  </button>
+
+                  {/* Hard refresh — reload the page */}
+                  <button
+                    onClick={handleHardRefresh}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-stone-900 hover:bg-stone-800 border border-stone-800 transition-colors text-xs"
+                    title="Hard refresh (reload the page)"
+                  >
+                    <RotateCcw size={12} />
+                    <span className="font-mono uppercase tracking-wider hidden md:inline">Reload</span>
+                  </button>
+
                   {!isEditor ? (
                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-950/40 border border-amber-700/40 text-xs">
                       <Eye size={12} className="text-amber-400" />
@@ -3343,15 +3610,6 @@ function __boot() {
                     </div>
                   ) : (
                     <>
-                      <button
-                        onClick={handleSync}
-                        disabled={syncing}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-stone-900 hover:bg-stone-800 border border-stone-800 transition-colors text-xs"
-                        title={`Last sync: ${formatLastSync()}`}
-                      >
-                        <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
-                        <span className="font-mono uppercase tracking-wider hidden sm:inline">{syncing ? 'Syncing' : 'Sync'}</span>
-                      </button>
                       <button
                         onClick={handleShareViewerLink}
                         className="flex items-center gap-1.5 px-2.5 py-1.5 bg-stone-900 hover:bg-stone-800 border border-stone-800 text-xs"
@@ -3465,7 +3723,33 @@ function __boot() {
           </div>
 
           {/* Main */}
-          <main className="max-w-6xl mx-auto px-4 py-4 grid lg:grid-cols-[1fr_320px] gap-6">
+          <main className="max-w-6xl mx-auto px-4 py-4 space-y-4">
+            {/* Compact "last updated" line, visible on mobile where the header timestamp is hidden */}
+            {lastSync && (
+              <div className="md:hidden flex items-center justify-end gap-2 -mb-2">
+                <span className="font-mono text-[10px] text-stone-500">
+                  <RelativeTime iso={lastSync} prefix="updated " />
+                </span>
+                {liveData.ok === false && (
+                  <span className="font-mono text-[10px] text-red-400">· offline</span>
+                )}
+              </div>
+            )}
+
+            {/* 1. Live game banner (auto-hides if nothing live) */}
+            <LiveGameBanner series={series} liveGames={liveData.games} onSeriesClick={setActiveSeries} />
+
+            {/* 2. Current leader showcase */}
+            {users.length > 0 && (
+              <LeaderShowcase users={users} series={series} onUserClick={setProfileUserId} />
+            )}
+
+            {/* 3. Full leaderboard */}
+            {users.length > 0 && (
+              <Leaderboard users={users} series={series} liveGames={liveData.games} onUserClick={setProfileUserId} />
+            )}
+
+            {/* 4. Bracket */}
             <div className="min-w-0">
               <div className="flex items-baseline justify-between mb-3">
                 <h2 className="font-serif text-2xl">The Bracket</h2>
@@ -3474,39 +3758,31 @@ function __boot() {
               <Bracket series={series} onSeriesClick={setActiveSeries} userBets={userBets} liveGames={liveData.games} />
             </div>
 
-            <aside className="lg:sticky lg:top-32 lg:self-start space-y-3 lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto">
-              <Leaderboard users={users} series={series} liveGames={liveData.games} onUserClick={setProfileUserId} />
-              {users.length > 0 && (
-                <HotTakes users={users} series={series} onSeriesClick={setActiveSeries} />
-              )}
-              {users.length > 0 && (
-                <RecentEvents users={users} series={series} onSeriesClick={setActiveSeries} />
-              )}
-              {users.length === 0 && isEditor && !isAdmin && (
-                <div className="bg-amber-950/20 border border-amber-700/30 p-3 text-amber-200/80 text-xs">
-                  Tap <span className="font-mono">Admin</span> and enter the password to add players.
-                </div>
-              )}
-              {users.length === 0 && !isEditor && (
-                <div className="bg-stone-900 border border-stone-800 p-3 text-stone-400 text-xs">
-                  The pool hasn't been set up yet.
-                </div>
-              )}
-              {!isEditor && users.length > 0 && (
-                <div className="bg-stone-900 border border-stone-800 p-3 text-stone-400 text-xs leading-relaxed">
-                  <div className="font-mono text-[10px] uppercase tracking-wider text-amber-400 mb-1">Read-only</div>
-                  You're viewing a shared pool. Tap any series or player to see bets and stats. Reactions on bets are private to your device.
-                </div>
-              )}
-            </aside>
-          </main>
-
-          {/* Full-width score history below the main two-column layout */}
-          {users.length > 0 && series.some((s) => s.status === 'closed') && (
-            <section className="max-w-6xl mx-auto px-4 mt-2">
+            {/* 5. Score history */}
+            {users.length > 0 && series.some((s) => s.status === 'closed') && (
               <ScoreHistory users={users} series={series} onUserClick={setProfileUserId} />
-            </section>
-          )}
+            )}
+
+            {/* 6. Hot takes + recent events side by side on desktop, stacked on mobile */}
+            {users.length > 0 && (
+              <div className="grid lg:grid-cols-2 gap-3">
+                <HotTakes users={users} series={series} onSeriesClick={setActiveSeries} />
+                <RecentEvents users={users} series={series} onSeriesClick={setActiveSeries} />
+              </div>
+            )}
+
+            {/* Empty / read-only states */}
+            {users.length === 0 && isEditor && !isAdmin && (
+              <div className="bg-amber-950/20 border border-amber-700/30 p-3 text-amber-200/80 text-xs">
+                Tap <span className="font-mono">Admin</span> and enter the password to add players.
+              </div>
+            )}
+            {users.length === 0 && !isEditor && (
+              <div className="bg-stone-900 border border-stone-800 p-3 text-stone-400 text-xs">
+                The pool hasn't been set up yet.
+              </div>
+            )}
+          </main>
 
           <footer className="max-w-6xl mx-auto px-4 py-6 mt-6 border-t border-stone-900">
             <div className="font-mono text-[10px] uppercase tracking-wider text-stone-600 text-center">
