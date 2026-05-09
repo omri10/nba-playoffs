@@ -2535,7 +2535,7 @@ function __boot() {
   }
 
 
-  function Leaderboard({ users, series, liveGames, onUserClick }) {
+  function Leaderboard({ users, series, liveGames, winProbs, onUserClick }) {
     // Detect any live games that affect bracket outcome
     const liveDecisiveSeries = useMemo(() => {
       return series.filter((s) => {
@@ -2722,6 +2722,21 @@ function __boot() {
                     {!lastSeriesImpact && !showProjected && (
                       <span>{u.breakdown.winners}pts winners · {u.breakdown.games}pts games</span>
                     )}
+                    {/* Win probability chip — small, de-emphasized but always present */}
+                    {winProbs && winProbs[u.id] != null && (() => {
+                      const p = winProbs[u.id];
+                      const txt = p < 0.005 ? '<1%' : `${Math.round(p * 100)}%`;
+                      // Subtle color cue: green if ≥30%, amber if ≥10%, gray otherwise
+                      const color = p >= 0.30 ? 'text-emerald-700' : p >= 0.10 ? 'text-amber-700' : 'text-stone-500';
+                      return (
+                        <>
+                          <span className="text-stone-400">·</span>
+                          <span className={`${color} font-bold`} title="Estimated chance to win the pool">
+                            win {txt}
+                          </span>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
@@ -4511,7 +4526,7 @@ function __boot() {
 
             {/* 3. Full leaderboard */}
             {users.length > 0 && (
-              <Leaderboard users={users} series={series} liveGames={liveData.games} onUserClick={setProfileUserId} />
+              <Leaderboard users={users} series={series} liveGames={liveData.games} winProbs={winProbs} onUserClick={setProfileUserId} />
             )}
 
             {/* 4. Bracket */}
