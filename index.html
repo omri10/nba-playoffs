@@ -550,6 +550,205 @@ function __boot() {
   }
 
   // ============================================================================
+  // WIN PROBABILITY SIMULATION
+  // Monte Carlo simulation that estimates each player's chance of winning the pool.
+  // Approach:
+  //   1. For each unfinished series, define a probability that one team wins
+  //      (informed by current series state if in progress, or seed if not started).
+  //   2. Run N random playoff trajectories. Each trajectory:
+  //      - Walks the bracket in topological order
+  //      - For each unstarted series, samples a winner + game count
+  //      - For each in-progress series, completes it from the current state
+  //      - Computes every player's final score
+  //      - Records who has the highest score (ties split fractionally)
+  //   3. Average across trajectories → win % per player.
+  //
+  // This is "for fun" — the underlying probabilities are coarse approximations.
+  // ============================================================================
+
+  // Seed-based prior win rate for the higher seed in a not-yet-started series.
+  // Loosely modeled on historical NBA playoff data.
+  const SEED_PRIOR = {
+    '1v8': 0.92, '2v7': 0.78, '3v6': 0.62, '4v5': 0.55,
+    '1v4': 0.65, '1v5': 0.70, '2v3': 0.55, '2v6': 0.65, '3v5': 0.55,
+    // Conf finals + Finals — closer matchups
+    'default': 0.55,
+  };
+
+  // Probability the higher seed wins given current series state (highWins-lowWins).
+  // Uses a simple model: each remaining game is roughly 50/50 with slight lean
+  // toward whichever team is winning the series. For terminal states (4 wins),
+  // returns 1.0 or 0.0.
+  function highSeedWinProbFromState(highWins, lowWins, basePrior) {
+    if (highWins >= 4) return 1.0;
+    if (lowWins >= 4) return 0.0;
+    const remaining = 7 - highWins - lowWins;
+    const highNeeds = 4 - highWins;
+    const lowNeeds = 4 - lowWins;
+    // Use binomial: P(high wins ≥ highNeeds out of remaining games at p=basePrior)
+    // For simplicity, just lean slightly toward whichever team has more wins.
+    // Each remaining game: high seed has prob `basePrior` of winning.
+    // Compute P(high wins enough remaining games).
+    let prob = 0;
+    // Enumerate ways high can win exactly k more games out of `remaining`
+    for (let k = highNeeds; k <= remaining; k++) {
+      let combo = 1;
+      for (let i = 0; i < k; i++) combo = (combo * (remaining - i)) / (i + 1);
+      prob += combo * Math.pow(basePrior, k) * Math.pow(1 - basePrior, remaining - k);
+    }
+    return Math.max(0, Math.min(1, prob));
+  }
+
+  function getSeedPrior(highSeed, lowSeed) {
+    if (!highSeed || !lowSeed) return SEED_PRIOR.default;
+    const key1 = `${highSeed}v${lowSeed}`;
+    const key2 = `${lowSeed}v${highSeed}`;
+    return SEED_PRIOR[key1] || SEED_PRIOR[key2] || SEED_PRIOR.default;
+  }
+
+  // Sample game count (4-7) when winner has been decided.
+  // Roughly: 4-game sweeps ~15%, 5-game ~25%, 6-game ~35%, 7-game ~25%.
+  function sampleGameCount() {
+    const r = Math.random();
+    if (r < 0.15) return 4;
+    if (r < 0.40) return 5;
+    if (r < 0.75) return 6;
+    return 7;
+  }
+
+  // Run a single playoff trajectory.
+  // Returns: { simulatedSeries: { id: { winner, loser, totalGames } }, championWinner }
+  function simulateOnce(currentSeries) {
+    const sim = {};
+    // Index for quick lookup
+    const byId = {};
+    for (const s of currentSeries) byId[s.id] = s;
+
+    // Process in dependency order: round 1, 2, 3, finals
+    const sortedByRound = [...currentSeries].sort((a, b) => a.round - b.round);
+
+    for (const s of sortedByRound) {
+      // If already closed in real life, use the actual result
+      if (s.status === 'closed') {
+        sim[s.id] = { winner: s.winner, loser: s.high === s.winner ? s.low : s.high, totalGames: s.totalGames };
+        continue;
+      }
+      // Determine the matchup. For round 1 it's hardcoded; for round 2+ pull from
+      // the simulated outcomes of the feeder series.
+      let high = s.high;
+      let low = s.low;
+      if (s.fromSeries) {
+        const feederA = sim[s.fromSeries[0]];
+        const feederB = sim[s.fromSeries[1]];
+        if (!feederA?.winner || !feederB?.winner) {
+          // Shouldn't happen with proper ordering, but guard anyway
+          continue;
+        }
+        high = feederA.winner;
+        low = feederB.winner;
+      }
+      if (!high || !low) continue;
+
+      // Compute win probability for the high-seeded team
+      let prob;
+      if (s.status === 'inprogress' && (s.highWins > 0 || s.lowWins > 0)) {
+        const prior = getSeedPrior(high, low);
+        prob = highSeedWinProbFromState(s.highWins || 0, s.lowWins || 0, prior);
+      } else {
+        prob = getSeedPrior(high, low);
+      }
+
+      const highWins = Math.random() < prob;
+      const winner = highWins ? high : low;
+      const loser = highWins ? low : high;
+      // Total games — if series is partially played, ensure the count makes sense
+      let totalGames;
+      if ((s.highWins || 0) + (s.lowWins || 0) > 0) {
+        // For in-progress series, total games must be at least currentGames+1 (winner needs 4)
+        const currentWins = highWins ? (s.highWins || 0) : (s.lowWins || 0);
+        const oppWins = highWins ? (s.lowWins || 0) : (s.highWins || 0);
+        // Winner needs (4 - currentWins) more games; loser already has oppWins
+        // Total = (4 - currentWins) + oppWins + currentWins = 4 + oppWins (winner ends with 4)
+        // Wait — total games = winnerWins + loserWins = 4 + oppWins
+        totalGames = 4 + oppWins;
+      } else {
+        totalGames = sampleGameCount();
+      }
+      sim[s.id] = { winner, loser, totalGames };
+    }
+
+    return sim;
+  }
+
+  // Compute a player's score given a simulated set of series outcomes.
+  function calcSimulatedScore(userBets, championBet, simulatedSeries, currentSeries) {
+    let pts = 0;
+    const byId = {};
+    for (const s of currentSeries) byId[s.id] = s;
+
+    for (const [seriesId, sim] of Object.entries(simulatedSeries)) {
+      const bet = userBets[seriesId];
+      if (!bet) continue;
+      if (bet.winner !== sim.winner) continue;
+      pts += POINTS_CORRECT_WINNER;
+      // Games bonus: matchup must match (both teams must be in the simulated series)
+      const matchupMatches = bet.loser && (bet.loser === sim.loser);
+      if (matchupMatches && Number(bet.totalGames) === sim.totalGames) {
+        pts += POINTS_CORRECT_GAMES;
+      }
+    }
+    // Champion
+    if (championBet && simulatedSeries.finals?.winner === championBet) {
+      pts += POINTS_CORRECT_CHAMPION;
+    }
+    return pts;
+  }
+
+  // Main entry point. Returns { winProbability: { userId: 0..1 } }
+  // `iterations` is the number of Monte Carlo trials. ~5000 is a good balance.
+  function computeWinProbabilities(users, currentSeries, iterations = 5000) {
+    if (!users.length) return {};
+
+    // Pre-compute: are there any unstarted/in-progress series? If everything is
+    // closed, the pool is decided — winner has 100%.
+    const anyOpen = currentSeries.some((s) => s.status !== 'closed');
+    if (!anyOpen) {
+      // Compute final scores deterministically
+      const finalScores = users.map((u) => ({
+        id: u.id,
+        pts: calcPoints(u.bets || {}, currentSeries, u.champion).points,
+      }));
+      const max = Math.max(...finalScores.map((s) => s.pts));
+      const winners = finalScores.filter((s) => s.pts === max);
+      const probs = {};
+      for (const u of users) probs[u.id] = 0;
+      for (const w of winners) probs[w.id] = 1 / winners.length;
+      return probs;
+    }
+
+    const winCounts = {};
+    for (const u of users) winCounts[u.id] = 0;
+
+    for (let i = 0; i < iterations; i++) {
+      const sim = simulateOnce(currentSeries);
+      // Score every user
+      const scores = users.map((u) => ({
+        id: u.id,
+        pts: calcSimulatedScore(u.bets || {}, u.champion, sim, currentSeries),
+      }));
+      const max = Math.max(...scores.map((s) => s.pts));
+      const winners = scores.filter((s) => s.pts === max);
+      // Split the win across tied players (so probabilities sum to 1)
+      const share = 1 / winners.length;
+      for (const w of winners) winCounts[w.id] += share;
+    }
+
+    const probs = {};
+    for (const u of users) probs[u.id] = winCounts[u.id] / iterations;
+    return probs;
+  }
+
+  // ============================================================================
   // LIVE SCORES (ESPN unofficial endpoint — no auth, CORS-friendly)
   // Returns a map: { "TEAM1_TEAM2": { home, away, status, period, clock, ... } }
   // keyed by both orderings so we can look up by either team in the series.
@@ -913,7 +1112,7 @@ function __boot() {
     }, [onEscape]);
   }
 
-  function SeriesModal({ series, users, currentUserId, onClose, onSaveBet, isAdmin, liveGame, reactions, onReactionToggle }) {
+  function SeriesModal({ series, users, currentUserId, onClose, onSaveBet, isAdmin, liveGame, completedGames, reactions, onReactionToggle }) {
     useEscapeKey(onClose);
     const [winner, setWinner] = useState(null);
     const [totalGames, setTotalGames] = useState(6);
@@ -1121,9 +1320,85 @@ function __boot() {
               </>
             )}
 
+            {/* Game-by-game log with YouTube highlights links.
+               Filters completedGames to ones matching this series's team pair, sorts by date. */}
+            <SeriesGameLog series={series} completedGames={completedGames} />
+
             {/* Bets on this series */}
             <SeriesBetsList series={series} users={users} liveGame={liveGame} reactions={reactions} onReactionToggle={onReactionToggle} />
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  function SeriesGameLog({ series, completedGames }) {
+    const games = useMemo(() => {
+      if (!completedGames || !series.high || !series.low) return [];
+      const matches = completedGames.filter((g) => {
+        const teams = new Set([g.homeTeam, g.awayTeam]);
+        return teams.has(series.high) && teams.has(series.low);
+      });
+      // Sort by start time ascending (Game 1 first)
+      return matches.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+    }, [series.high, series.low, completedGames]);
+
+    if (games.length === 0) return null;
+
+    // Build a YouTube search URL for a specific game.
+    // The NBA's official channel posts highlights as "[Away] vs [Home] Game N highlights"
+    // — searching that phrase reliably surfaces the official video as the top result.
+    const highlightsUrl = (game, gameNum) => {
+      const awayName = TEAM_DATA[game.awayTeam]?.name || game.awayTeam;
+      const homeName = TEAM_DATA[game.homeTeam]?.name || game.homeTeam;
+      const query = `${awayName} vs ${homeName} Game ${gameNum} highlights NBA`;
+      return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+    };
+
+    return (
+      <div>
+        <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-stone-500 mb-2">
+          Game History
+        </div>
+        <div className="space-y-1.5">
+          {games.map((g, i) => {
+            const gameNum = i + 1;
+            const homeColor = TEAM_DATA[g.homeTeam]?.color || '#78716c';
+            const awayColor = TEAM_DATA[g.awayTeam]?.color || '#78716c';
+            const homeWon = g.homeScore > g.awayScore;
+            return (
+              <div key={g.gameId} className="flex items-center gap-2 bg-stone-900 border-2 border-stone-900 p-2.5">
+                <div className="font-mono text-[10px] uppercase tracking-wider text-stone-500 w-12 flex-shrink-0">
+                  Game {gameNum}
+                </div>
+                <div className="flex-1 min-w-0 flex items-center gap-2 font-mono text-xs tabular-nums">
+                  <span style={{ color: awayColor, fontWeight: !homeWon ? 700 : 400 }}>
+                    {g.awayTeam} {g.awayScore}
+                  </span>
+                  <span className="text-stone-500">·</span>
+                  <span style={{ color: homeColor, fontWeight: homeWon ? 700 : 400 }}>
+                    {g.homeTeam} {g.homeScore}
+                  </span>
+                </div>
+                <a
+                  href={highlightsUrl(g, gameNum)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-shrink-0 flex items-center gap-1 px-2 py-1 transition-colors"
+                  style={{
+                    background: '#fee2e2',
+                    color: '#991b1b',
+                    border: '2px solid #1c1917',
+                    textDecoration: 'none',
+                  }}
+                  title={`Watch Game ${gameNum} highlights on YouTube`}
+                >
+                  <span className="text-[10px] leading-none">▶</span>
+                  <span className="font-mono text-[10px] uppercase tracking-wider font-bold">Highlights</span>
+                </a>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -2671,7 +2946,7 @@ function __boot() {
     );
   }
 
-  function ProfileModal({ user, users, series, onClose, onSeriesClick, onCompare }) {
+  function ProfileModal({ user, users, series, winProbs, onClose, onSeriesClick, onCompare }) {
     useEscapeKey(onClose);
     const [showComparePicker, setShowComparePicker] = useState(false);
     const stats = useMemo(() => {
@@ -2815,6 +3090,54 @@ function __boot() {
           )}
 
           <div className="p-4 space-y-4">
+            {/* Win probability — hero card.
+               Estimated via Monte Carlo over remaining bracket. For fun, not gospel. */}
+            {(() => {
+              const myProb = winProbs?.[user.id];
+              if (myProb == null) return null;
+              // Rank by win probability among everyone
+              const ranked = users
+                .map((u) => ({ u, p: winProbs[u.id] || 0 }))
+                .sort((a, b) => b.p - a.p);
+              const myRank = ranked.findIndex((r) => r.u.id === user.id) + 1;
+              const top = ranked[0];
+              const isLeader = top.u.id === user.id;
+              const pctText = myProb < 0.005 ? '<1%' : `${Math.round(myProb * 100)}%`;
+              return (
+                <div
+                  className="border-2 border-stone-900 p-4"
+                  style={{ background: isLeader ? '#fde68a' : '#fef3c7' }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-stone-700 font-bold">
+                      Estimated Chance to Win
+                    </span>
+                    <span className="font-mono text-[9px] uppercase tracking-wider text-stone-600">
+                      {ranked.length > 1 ? `#${myRank} of ${ranked.length}` : ''}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-3">
+                    <div className="font-display text-5xl tabular-nums text-stone-900 leading-none">
+                      {pctText}
+                    </div>
+                    {!isLeader && top && (
+                      <div className="font-mono text-[10px] text-stone-700">
+                        leader: {top.u.name.split(' ')[0]} at {top.p < 0.005 ? '<1%' : `${Math.round(top.p * 100)}%`}
+                      </div>
+                    )}
+                    {isLeader && ranked[1] && (
+                      <div className="font-mono text-[10px] text-stone-700">
+                        next: {ranked[1].u.name.split(' ')[0]} at {ranked[1].p < 0.005 ? '<1%' : `${Math.round(ranked[1].p * 100)}%`}
+                      </div>
+                    )}
+                  </div>
+                  <div className="font-mono text-[9px] text-stone-600 mt-2 italic">
+                    rough Monte Carlo estimate — for fun
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Stats grid */}
             <div className="grid grid-cols-3 gap-2">
               <div className="bg-stone-950 border border-stone-800 p-3">
@@ -3588,6 +3911,13 @@ function __boot() {
       return buildSeries(BRACKET_STRUCTURE, merged);
     }, [liveData.completedGames]);
 
+    // Win probability per user — Monte Carlo simulation across remaining bracket.
+    // 5000 iterations runs in ~100-300ms; recomputes when users or series state change.
+    const winProbs = useMemo(() => {
+      if (!users.length || !series.length) return {};
+      return computeWinProbabilities(users, series, 5000);
+    }, [users, series]);
+
     // Keep activeSeries in sync as series data refreshes
     useEffect(() => {
       if (!activeSeries) return;
@@ -4254,6 +4584,7 @@ function __boot() {
             onSaveBet={handleSaveBet}
             isAdmin={isAdmin}
             liveGame={findLiveGameForSeries(activeSeries, liveData.games)}
+            completedGames={liveData.completedGames}
             reactions={reactions}
             onReactionToggle={toggleReaction}
           />
@@ -4266,6 +4597,7 @@ function __boot() {
               user={profileUser}
               users={users}
               series={series}
+              winProbs={winProbs}
               onClose={() => setProfileUserId(null)}
               onSeriesClick={(s) => {
                 setProfileUserId(null);
