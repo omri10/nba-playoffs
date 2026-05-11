@@ -266,19 +266,21 @@ function __boot() {
   // API-driven derivation is verified.
   // ============================================================================
   const RESULTS = {
-    // Round 1 East
-    e1: { highWins: 3, lowWins: 3 },                               // DET 3-3 ORL
-    e2: { highWins: 3, lowWins: 3 },                               // BOS 3-3 PHI
-    e3: { winner: 'NYK', loser: 'ATL', totalGames: 6 },            // NYK in 6
-    e4: { highWins: 3, lowWins: 3 },                               // CLE 3-3 TOR
-    // Round 1 West
-    w1: { winner: 'OKC', loser: 'PHX', totalGames: 4 },            // OKC sweep
-    w2: { winner: 'SAS', loser: 'POR', totalGames: 5 },            // SAS in 5
-    w3: { winner: 'MIN', loser: 'DEN', totalGames: 6 },            // MIN upset
-    w4: { winner: 'LAL', loser: 'HOU', totalGames: 6 },            // LAL in 6
-    // Round 2 West locked from R1 winners
-    w5: { high: 'OKC', low: 'LAL' },
-    w6: { high: 'SAS', low: 'MIN' },
+    // Round 1 East — all closed
+    e1: { winner: 'DET', loser: 'ORL', totalGames: 7 },          // DET back from 3-1
+    e2: { winner: 'PHI', loser: 'BOS', totalGames: 7 },          // PHI upset BOS
+    e3: { winner: 'NYK', loser: 'ATL', totalGames: 6 },          // NYK in 6
+    e4: { winner: 'CLE', loser: 'TOR', totalGames: 7 },          // CLE in 7
+    // Round 1 West — all closed
+    w1: { winner: 'OKC', loser: 'PHX', totalGames: 4 },          // OKC sweep
+    w2: { winner: 'SAS', loser: 'POR', totalGames: 5 },          // SAS in 5
+    w3: { winner: 'MIN', loser: 'DEN', totalGames: 6 },          // MIN upset
+    w4: { winner: 'LAL', loser: 'HOU', totalGames: 6 },          // LAL in 6
+    // Round 2 — in progress
+    e5: { high: 'DET', low: 'CLE', highWins: 2, lowWins: 1 },    // DET leads 2-1
+    e6: { winner: 'NYK', loser: 'PHI', totalGames: 4 },          // NYK swept 4-0
+    w5: { high: 'OKC', low: 'LAL', highWins: 3, lowWins: 0 },    // OKC leads 3-0
+    w6: { high: 'SAS', low: 'MIN', highWins: 2, lowWins: 2 },    // tied 2-2
   };
 
   // Combine BRACKET_STRUCTURE + RESULTS into the runtime series shape the rest
