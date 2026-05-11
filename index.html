@@ -3498,44 +3498,61 @@ function __boot() {
 
           <div className="p-4 space-y-4">
             {/* Top: head-to-head record */}
-            <div className="bg-gradient-to-b from-stone-950 to-stone-900 border border-stone-800 p-4">
-              <div className="font-mono text-[10px] uppercase tracking-wider text-stone-500 mb-3 text-center">
+            <div
+              className="p-4"
+              style={{ background: '#fde68a', border: '2px solid #1c1917' }}
+            >
+              <div className="font-mono text-[10px] uppercase tracking-wider text-stone-700 mb-3 text-center font-bold">
                 Series record (resolved)
               </div>
               <div className="flex items-center justify-between gap-2">
                 <button
                   onClick={() => onSwitchTo(userA.id)}
-                  className="flex-1 flex flex-col items-center gap-1.5 hover:bg-stone-800/30 p-2 transition-colors"
+                  className="flex-1 flex flex-col items-center gap-1.5 p-2 transition-colors"
+                  style={{ background: 'transparent' }}
                 >
                   <div
-                    className="w-12 h-12 flex items-center justify-center font-serif border border-stone-700"
-                    style={userA.avatar ? { background: `url(${userA.avatar}) center/cover` } : { background: '#f5ecd5' }}
+                    className="w-14 h-14 flex items-center justify-center font-serif"
+                    style={{
+                      ...(userA.avatar ? { background: `url(${userA.avatar}) center/cover` } : { background: '#ffffff' }),
+                      border: '2px solid #1c1917',
+                    }}
                   >
-                    {!userA.avatar && userA.name.charAt(0).toUpperCase()}
+                    {!userA.avatar && <span className="text-stone-900">{userA.name.charAt(0).toUpperCase()}</span>}
                   </div>
-                  <div className="font-serif text-sm truncate max-w-full">{userA.name.split(' ')[0]}</div>
-                  <div className={`font-serif text-3xl tabular-nums ${data.aWinsHead > data.bWinsHead ? 'text-emerald-300' : 'text-stone-300'}`}>
+                  <div className="font-display text-sm truncate max-w-full uppercase text-stone-900">{userA.name.split(' ')[0]}</div>
+                  <div
+                    className="font-display text-4xl tabular-nums"
+                    style={{ color: data.aWinsHead > data.bWinsHead ? '#047857' : '#1c1917' }}
+                  >
                     {data.aWinsHead}
                   </div>
                 </button>
-                <div className="font-mono text-[10px] uppercase text-stone-600">vs</div>
+                <div className="font-mono text-[10px] uppercase text-stone-700 font-bold">vs</div>
                 <button
                   onClick={() => onSwitchTo(userB.id)}
-                  className="flex-1 flex flex-col items-center gap-1.5 hover:bg-stone-800/30 p-2 transition-colors"
+                  className="flex-1 flex flex-col items-center gap-1.5 p-2 transition-colors"
+                  style={{ background: 'transparent' }}
                 >
                   <div
-                    className="w-12 h-12 flex items-center justify-center font-serif border border-stone-700"
-                    style={userB.avatar ? { background: `url(${userB.avatar}) center/cover` } : { background: '#f5ecd5' }}
+                    className="w-14 h-14 flex items-center justify-center font-serif"
+                    style={{
+                      ...(userB.avatar ? { background: `url(${userB.avatar}) center/cover` } : { background: '#ffffff' }),
+                      border: '2px solid #1c1917',
+                    }}
                   >
-                    {!userB.avatar && userB.name.charAt(0).toUpperCase()}
+                    {!userB.avatar && <span className="text-stone-900">{userB.name.charAt(0).toUpperCase()}</span>}
                   </div>
-                  <div className="font-serif text-sm truncate max-w-full">{userB.name.split(' ')[0]}</div>
-                  <div className={`font-serif text-3xl tabular-nums ${data.bWinsHead > data.aWinsHead ? 'text-emerald-300' : 'text-stone-300'}`}>
+                  <div className="font-display text-sm truncate max-w-full uppercase text-stone-900">{userB.name.split(' ')[0]}</div>
+                  <div
+                    className="font-display text-4xl tabular-nums"
+                    style={{ color: data.bWinsHead > data.aWinsHead ? '#047857' : '#1c1917' }}
+                  >
                     {data.bWinsHead}
                   </div>
                 </button>
               </div>
-              <div className="font-mono text-[10px] text-stone-500 text-center mt-2">
+              <div className="font-mono text-[10px] text-stone-700 text-center mt-2">
                 series outscored each other on
               </div>
             </div>
@@ -4245,8 +4262,9 @@ function __boot() {
           .text-emerald-300, .text-emerald-400, .text-emerald-500 { color: var(--emerald) !important; }
           .bg-emerald-600, .bg-emerald-500 { background-color: var(--emerald) !important; }
 
-          /* Background gradients — flatten to solid paper */
-          .bg-gradient-to-br { background: var(--paper-card) !important; background-image: none !important; }
+          /* Background gradients — flatten to solid paper.
+             Match any gradient direction since dark gradients otherwise leak through. */
+          [class*="bg-gradient-to-"] { background: var(--paper-card) !important; background-image: none !important; }
 
           /* ===== Mockup C signature touches ===== */
           /* (Removed universal border-width override — it was turning border-t-only
